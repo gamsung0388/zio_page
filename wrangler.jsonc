@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zio-home",
+  "main": "server/index.js",
+  "compatibility_date": "2026-07-30",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api", "/api/*"],
+  },
+  "vars": {
+    "APP_ENV": "production",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zio-home-db",
+      "migrations_dir": "migrations",
+      "database_id": "e940f5c7-0d02-443e-9f83-0b4ed8502ce4",
+      "remote": false,
+    },
+  ],
+}

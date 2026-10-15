@@ -1,0 +1,2 @@
+# Copy to .dev.vars ONLY for local development. Never deploy development mode.
+APP_ENV=development
