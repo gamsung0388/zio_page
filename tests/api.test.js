@@ -579,7 +579,7 @@ test("admin registration requires an active session, same origin and valid CSRF"
 
 test("registered administrator is hashed, response excludes credentials and account can log in", async () => {
   const auth = await login();
-  const pass = randomToken();
+  const pass = randomToken().slice(0, 8);
   const response = await request(
     "/api/admin/users",
     "POST",
@@ -661,7 +661,7 @@ test("admin registration validates all fields without creating invalid accounts"
     { username: "한글" },
     { username: "x".repeat(81) },
     { username: "has space" },
-    { password: "short", password_confirmation: "short" },
+    { password: "x".repeat(7), password_confirmation: "x".repeat(7) },
     { password: "x".repeat(257), password_confirmation: "x".repeat(257) },
     { password_confirmation: randomToken() },
     { display_name: "x".repeat(81) },
@@ -788,7 +788,7 @@ test("password changes reject invalid values and incorrect current password with
     .bind("test-admin")
     .first();
   for (const invalid of [
-    { password: "short", password_confirmation: "short" },
+    { password: "x".repeat(7), password_confirmation: "x".repeat(7) },
     { password_confirmation: randomToken() },
     { password: "qwer1234!@#$", password_confirmation: "qwer1234!@#$" },
     { password, password_confirmation: password },
@@ -845,7 +845,7 @@ test("password changes reject invalid values and incorrect current password with
 test("changing own password invalidates every existing session and requires a fresh login", async () => {
   const first = await login(),
     second = await login(),
-    next = randomToken();
+    next = randomToken().slice(0, 8);
   const changed = await request(
     "/api/admin/password",
     "PATCH",

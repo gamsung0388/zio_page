@@ -88,12 +88,12 @@ async function save() {
               v-model="draft.password"
               type="password"
               autocomplete="new-password"
-              minlength="12"
+              minlength="8"
               maxlength="256"
               required
               :aria-describedby="`${prefix}-hint`"
             /><small :id="`${prefix}-hint`"
-              >12~256자. 현재 비밀번호 및 초기화 비밀번호와 다르게
+              >8~256자. 현재 비밀번호 및 초기화 비밀번호와 다르게
               설정해주세요.</small
             >
           </div>
@@ -104,7 +104,7 @@ async function save() {
               v-model="draft.password_confirmation"
               type="password"
               autocomplete="new-password"
-              minlength="12"
+              minlength="8"
               maxlength="256"
               required
             />

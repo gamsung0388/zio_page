@@ -19,7 +19,7 @@ npm run admin:create
 npm run dev
 ```
 
-`http://127.0.0.1:5173`을 엽니다. `admin:create`는 운영자가 지정한 ID/표시 이름과 `*`로 마스킹되는 비밀번호(12~256자)를 받아 **로컬 D1**에 계정을 생성합니다. 기본 비밀번호나 공개 가입 API는 없습니다. 계정을 만들지 않아도 공개 화면은 실행됩니다. 노래는 관리자 로그인 후 직접 등록하거나 CSV로 추가합니다.
+`http://127.0.0.1:5173`을 엽니다. `admin:create`는 운영자가 지정한 ID/표시 이름과 `*`로 마스킹되는 비밀번호(8~256자)를 받아 **로컬 D1**에 계정을 생성합니다. 기본 비밀번호나 공개 가입 API는 없습니다. 계정을 만들지 않아도 공개 화면은 실행됩니다. 노래는 관리자 로그인 후 직접 등록하거나 CSV로 추가합니다.
 
 이 작업에서 이미 의존성 설치와 로컬 migration을 수행했습니다. `.dev.vars`도 개발 모드로 생성했습니다. 바로 `npm run admin:create`와 `npm run dev`를 실행하면 됩니다.
 
@@ -113,4 +113,4 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 
 소스 저장소: [gamsung0388/zio_page](https://github.com/gamsung0388/zio_page), 작업 브랜치: `codex/phase1`. 비밀값·로컬 DB·백업·빌드 산출물은 추적하지 않습니다.
 
-2026-10-16: 사용자 승인 후 소스·설계 문서를 GitHub `codex/phase1`에 업로드했습니다. 운영 D1을 Git에서 제외된 `.local/backups/`에 백업하고 migration 0003 및 관리자 등록·비밀번호 변경·초기화 기능 배포를 완료했습니다. 배포 버전은 `161896a5-1c4c-4724-8ac4-5413d1714360`입니다. 원격 DB 연결, 새 화면 파일, 익명 관리자 API 접근 차단을 확인했습니다. Cloudflare 자동 배포 연결은 설정하지 않았으므로 이후 배포는 `npm run deploy`로 수행합니다.
+2026-10-16: 사용자 승인 후 소스·설계 문서를 GitHub `codex/phase1`에 업로드했습니다. 운영 D1을 Git에서 제외된 `.local/backups/`에 백업하고 migration 0003 및 관리자 등록·비밀번호 변경·초기화 기능 배포를 완료했습니다. 배포 버전은 `6d466def-da17-4833-9ca4-7c0da18f5018`입니다. 원격 DB 연결, 새 화면 파일, 익명 관리자 API 접근 차단을 확인했습니다. Cloudflare 자동 배포 연결은 설정하지 않았으므로 이후 배포는 `npm run deploy`로 수행합니다.

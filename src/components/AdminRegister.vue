@@ -88,12 +88,12 @@ async function register() {
             type="password"
             autocomplete="new-password"
             required
-            minlength="12"
+            minlength="8"
             maxlength="256"
             :aria-describedby="`${prefix}-password-hint`"
           />
           <small :id="`${prefix}-password-hint`"
-            >12~256자로 입력해주세요.</small
+            >8~256자로 입력해주세요.</small
           >
         </div>
         <div class="field">
@@ -105,7 +105,7 @@ async function register() {
             type="password"
             autocomplete="new-password"
             required
-            minlength="12"
+            minlength="8"
             maxlength="256"
           />
         </div>

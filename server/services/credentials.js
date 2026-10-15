@@ -4,12 +4,12 @@ export function newPasswordErrors(password, confirmation) {
   const errors = [];
   if (
     typeof password !== "string" ||
-    password.length < 12 ||
+    password.length < 8 ||
     password.length > 256
   ) {
     errors.push({
       field: "password",
-      message: "새 비밀번호는 12~256자로 입력해주세요.",
+      message: "새 비밀번호는 8~256자로 입력해주세요.",
     });
   } else if (password === RESET_PASSWORD) {
     errors.push({

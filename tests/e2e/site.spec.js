@@ -235,7 +235,7 @@ test("administrator can register another administrator and the new account can l
     fullPage: true,
   });
   const username = `qa-web-${Date.now().toString(36)}`;
-  const newPassword = crypto.randomUUID();
+  const newPassword = crypto.randomUUID().slice(0, 8);
   await dialog.getByLabel("아이디", { exact: true }).fill(username);
   await dialog.getByLabel("표시 이름", { exact: true }).fill("추가 QA 관리자");
   await dialog.getByLabel("비밀번호", { exact: true }).fill(newPassword);
@@ -341,7 +341,7 @@ test("administrator resets a password and target must change it before using adm
     path: "test-results/screenshots/password-change-390.png",
     fullPage: true,
   });
-  const changed = crypto.randomUUID();
+  const changed = crypto.randomUUID().slice(0, 8);
   await page.getByLabel("현재 비밀번호", { exact: true }).fill("qwer1234!@#$");
   await page.getByLabel("새 비밀번호", { exact: true }).fill(changed);
   await page.getByLabel("새 비밀번호 확인", { exact: true }).fill(changed);
