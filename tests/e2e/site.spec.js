@@ -75,8 +75,15 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
     .getByLabel("비밀번호", { exact: true })
     .fill(process.env.ZIO_E2E_PASSWORD);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
-  await openAdminMenu(page, "노래 관리");
+  await expect(page).toHaveURL(/\/admin$/);
+  const mainMenu = page.getByRole("navigation", { name: "주 메뉴", exact: true });
+  await expect(page.getByRole("navigation", { name: "관리 기능 선택", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
+  await mainMenu.getByRole("link", { name: "노래 관리", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs$/);
+  await expect(mainMenu.getByRole("link", { name: "노래 관리", exact: true })).toHaveClass(/active/);
+  await expect(mainMenu.getByRole("link", { name: "관리자 관리", exact: true })).not.toHaveClass(/active/);
+  await expect(page.getByRole("button", { name: "관리자 등록", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "관리자 메뉴", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "새 노래 등록" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("곡명").fill("QA 전용 곡");
@@ -210,9 +217,13 @@ test("administrator can register another administrator and the new account can l
   await expect(headerMenu).toBeVisible();
   await headerMenu.click();
   await expect(page).toHaveURL(/\/admin$/);
+  await expect(headerMenu).toHaveClass(/active/);
+  await expect(page.getByRole("navigation", { name: "주 메뉴", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).not.toHaveClass(/active/);
+  await expect(page.getByRole("navigation", { name: "관리 기능 선택", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/screenshots/admin-menu-360.png", fullPage: true });
   await openAdminMenu(page, "관리자 관리");
+  await expect(page.getByRole("navigation", { name: "관리자 메뉴", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /비밀번호 초기화/ })).toHaveCount(0);
   await page.getByRole("button", { name: "관리자 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "관리자 등록", exact: true });

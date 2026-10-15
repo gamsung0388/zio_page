@@ -1,6 +1,4 @@
 <script setup>
-import AdminRegister from "../components/AdminRegister.vue";
-import AdminNav from "../components/AdminNav.vue";
 import { ref } from "vue";
 import { api, session, downloadBlob } from "../services/api.js";
 import { useSongs } from "../services/useSongs.js";
@@ -28,12 +26,6 @@ const {
   search,
   reset,
 } = useSongs(true);
-const creatingAdmin = ref(false);
-function registered() {
-  creatingAdmin.value = false;
-  toast.value = "관리자를 등록했습니다.";
-  actionError.value = "";
-}
 const editing = ref(undefined),
   importing = ref(false),
   deleting = ref(null),
@@ -101,7 +93,7 @@ async function backup() {
 <template>
   <div class="container page admin-page">
     <div class="breadcrumb">
-      <RouterLink to="/">홈</RouterLink><span>/</span>관리자
+      <RouterLink to="/">홈</RouterLink><span>/</span>노래 관리
     </div>
     <div class="page-heading">
       <div>
@@ -116,17 +108,9 @@ async function backup() {
         <Icon name="plus" :size="19" />새 노래 등록
       </button>
     </div>
-    <AdminNav />
     <div class="admin-tools">
-      <span><Icon name="lock" :size="16" />관리자 전용 공간</span>
+      <span><Icon name="music" :size="16" />노래책자 · CSV 관리</span>
       <div>
-        <button
-          class="button secondary small"
-          :disabled="busy"
-          @click="creatingAdmin = true"
-        >
-          <Icon name="plus" :size="16" />관리자 등록
-        </button>
         <button
           class="button secondary small"
           :disabled="busy"
@@ -221,11 +205,6 @@ async function backup() {
       CSV 백업에는 비공개 곡과 관리자 메모가 포함됩니다. 안전한 위치에
       보관해주세요.
     </p>
-    <AdminRegister
-      v-if="creatingAdmin"
-      @close="creatingAdmin = false"
-      @registered="registered"
-    />
     <SongForm
       v-if="editing !== undefined"
       :song="editing"

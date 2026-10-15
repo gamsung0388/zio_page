@@ -20,12 +20,6 @@ const entries = [
     description: "내 계정의 현재 비밀번호를 변경하세요.",
     icon: "edit",
   },
-  {
-    to: "/admin/songs",
-    title: "노래 관리",
-    description: "노래책자와 CSV 등록·백업을 관리하세요.",
-    icon: "music",
-  },
 ];
 </script>
 <template>
@@ -37,7 +31,7 @@ const entries = [
       <div>
         <span class="eyebrow">ZIO HOME ADMIN</span>
         <h1>관리자 관리 메뉴<span class="green-period">.</span></h1>
-        <p>{{ session.user?.display_name || session.user?.username }}님, 사용할 메뉴를 선택해주세요.</p>
+        <p>{{ session.user?.display_name || session.user?.username }}님, 관리자 계정을 관리할 메뉴를 선택해주세요.</p>
       </div>
     </div>
     <nav class="admin-menu-grid" aria-label="관리 기능 선택">

@@ -43,7 +43,7 @@ async function save() {
   <div class="container page admin-password-page">
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>
-      <template v-if="!forced"><RouterLink to="/admin">관리 메뉴</RouterLink><span>/</span></template>
+      <template v-if="!forced"><RouterLink to="/admin">관리자 메뉴</RouterLink><span>/</span></template>
       관리자 비밀번호 변경
     </div>
     <div class="page-heading">

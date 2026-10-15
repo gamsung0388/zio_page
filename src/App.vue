@@ -58,8 +58,13 @@ onBeforeUnmount(
           >노래책자</RouterLink
         ><RouterLink
           v-if="session.user"
+          to="/admin/songs"
+          :class="{ active: route.path === '/admin/songs' }"
+          >노래 관리</RouterLink
+        ><RouterLink
+          v-if="session.user"
           to="/admin"
-          :class="{ active: route.path.startsWith('/admin') }"
+          :class="{ active: route.meta.admin && route.path !== '/admin/songs' }"
           >관리자 관리</RouterLink
         >
       </nav>
@@ -82,6 +87,7 @@ onBeforeUnmount(
         <p>오늘도 지오의 음악 공간에 함께해주셔서 고마워요.</p>
       </div>
       <div class="footer-right">
+        <RouterLink v-if="session.user" to="/admin/songs">노래 관리</RouterLink>
         <RouterLink :to="session.user ? '/admin' : '/admin/login'">{{
           session.user ? "관리자 관리" : "관리자 로그인"
         }}</RouterLink

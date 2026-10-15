@@ -70,7 +70,7 @@ onMounted(load);
   <div class="container page admin-users-page">
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>
-      <RouterLink to="/admin">관리 메뉴</RouterLink><span>/</span>
+      <RouterLink to="/admin">관리자 메뉴</RouterLink><span>/</span>
       {{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리" }}
     </div>
     <div class="page-heading">
