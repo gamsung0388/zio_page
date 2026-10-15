@@ -8,7 +8,7 @@ Worker만 확인하려면 `GET /api/health`, 실제 DB 마이그레이션 상태
 
 ## 운영자 수동 설정 순서
 
-현재 계정 인증과 실제 D1 생성·연결, 원격 migration 0001·0002 적용까지 완료했습니다. 아래 전체 절차는 새 환경을 위한 참고입니다. 운영자가 원격 관리자 계정을 생성하고 배포까지 완료했습니다. 서비스 주소: https://zio-home.ryan9320.workers.dev. 아래 명령은 신규 설정이나 재배포 시 참고합니다.
+현재 계정 인증과 실제 D1 생성·연결, 원격 migration 0001·0002·0003 적용까지 완료했습니다. 아래 전체 절차는 새 환경을 위한 참고입니다. 운영자가 원격 관리자 계정을 생성하고 배포까지 완료했습니다. 서비스 주소: https://zio-home.ryan9320.workers.dev. 아래 명령은 신규 설정이나 재배포 시 참고합니다.
 
 ```powershell
 Set-Location E:\zio
@@ -59,11 +59,11 @@ SQL에는 관리자 비밀번호 해시와 세션도 포함되므로 민감한 �
 npm run admin:revoke -- --remote
 ```
 
-표시된 ID의 모든 세션을 삭제합니다. 계정 비활성화(`admin_users.is_active=0`)도 이후 모든 인증을 거부합니다. 비밀번호 교체는 기존 계정 비활성화와 새 운영자 계정 생성 후 이전 세션 폐기 방식으로 수행할 수 있습니다.
+표시된 ID의 모든 세션을 삭제합니다. 계정 비활성화(`admin_users.is_active=0`)도 이후 모든 인증을 거부합니다. 비밀번호는 관리 화면의 **비밀번호 변경**에서 교체하며, 다른 관리자 계정은 **관리자 관리**에서 초기화합니다. 두 경우 모두 대상 계정의 기존 세션을 전부 폐기합니다. 초기화 이후에는 새 비밀번호 설정을 강제합니다. 자세한 동작은 [관리자 계정 관리](09_ADMIN_ACCOUNTS.md)를 참고하세요.
 
 ## Git / GitHub
 
-원격 저장소는 `https://github.com/gamsung0388/zio_page.git`, 작업 브랜치는 `codex/phase1`입니다. Git 초기화 후 `.gitignore`를 유지하고 `git status --short`에서 `.dev.vars`, `.wrangler`, `.local`, 백업이 추적되지 않는지 확인하세요. 이후 변경사항은 테스트 후 같은 브랜치에 commit/push합니다. Cloudflare 자동 배포 연결은 설정하지 않았습니다. 비밀값이나 로컬 DB를 커밋하지 않습니다.
+원격 저장소는 `https://github.com/gamsung0388/zio_page.git`, 작업 브랜치는 `codex/phase1`입니다. Git 초기화 후 `.gitignore`를 유지하고 `git status --short`에서 `.dev.vars`, `.wrangler`, `.local`, 백업이 추적되지 않는지 확인하세요. 이후 변경사항은 테스트 후 같은 브랜치에 commit/push합니다. 2026-10-16 사용자 승인 후 소스·설계 문서 업로드를 완료했습니다. Cloudflare 자동 배포 연결은 설정하지 않았습니다. 비밀값이나 로컬 DB를 커밋하지 않습니다.
 
 ## 자동 D1 설정 시 주의
 

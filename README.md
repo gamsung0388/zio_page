@@ -69,7 +69,7 @@ docs/                        원본 설계 및 실행·운영·QA 문서
 - 숙련도 5단계와 연습 상태 4종은 독립값입니다. 풍은 수량 안내만 제공합니다.
 - 공개 SQL은 `memo`를 SELECT하지 않으며 `is_public=1`을 강제합니다. 관리자 응답을 포함해 API는 `Cache-Control: no-store`입니다.
 - PBKDF2-HMAC-SHA256 100,000회 + 계정별 암호학적 랜덤 salt를 사용합니다. workerd에서 실제 검증했습니다. 패스워드 해시 정책을 강화할 때는 CLI와 검증 코드를 함께 변경하고 배포 런타임/무료 CPU 예산을 다시 확인하세요.
-- 세션은 256비트 불투명 난수입니다. DB에는 SHA-256 토큰 해시만 저장합니다. 서명 쿠키를 사용하지 않아 별도 세션 서명 secret은 필요하지 않습니다. 비밀번호는 CLI 입력으로만 설정합니다.
+- 세션은 256비트 불투명 난수입니다. DB에는 SHA-256 토큰 해시만 저장합니다. 서명 쿠키를 사용하지 않아 별도 세션 서명 secret은 필요하지 않습니다. 최초 관리자 비밀번호는 CLI에서 설정하며, 이후 관리자 등록·비밀번호 변경·초기화는 인증된 관리 화면에서도 수행합니다.
 - 쿠키는 HttpOnly/SameSite=Lax/7일 만료이며 운영에서 Secure입니다. `APP_ENV=development` 또는 `test` + loopback HTTP에서만 로컬용 Secure 예외를 허용합니다. 운영 설정은 production으로 고정합니다.
 - 모든 관리 변경에 정확한 동일 출처 Origin/Referer 검사와 세션에서 파생한 CSRF 토큰을 요구합니다. 로그인도 출처 검사를 수행합니다. 와일드카드 CORS를 사용하지 않습니다.
 - 로그인 제한은 D1의 원자적 카운터로 유지합니다. IP당 15분에 10회, ID당 20회입니다. IP/ID는 해시로 저장하고 성공/실패 로그에 계정·암호·토큰을 남기지 않습니다. 성공한 로그인 때 만료 세션·제한을 제한된 수량만 정리합니다.
@@ -113,4 +113,4 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 
 소스 저장소: [gamsung0388/zio_page](https://github.com/gamsung0388/zio_page), 작업 브랜치: `codex/phase1`. 비밀값·로컬 DB·백업·빌드 산출물은 추적하지 않습니다.
 
-관리자 등록·비밀번호 변경·초기화 확장의 로컬 구현과 검증은 완료했으며, 운영 DB 백업·migration 0003·실사이트 배포는 승인 대기 상태입니다. GitHub 업로드와 Cloudflare 운영 배포는 각각 별도 작업입니다.
+2026-10-16: 사용자 승인 후 소스·설계 문서를 GitHub `codex/phase1`에 업로드했습니다. 운영 D1을 Git에서 제외된 `.local/backups/`에 백업하고 migration 0003 및 관리자 등록·비밀번호 변경·초기화 기능 배포를 완료했습니다. 배포 버전은 `55270c7f-cb50-4011-a4c4-b5717e2c4c98`입니다. 원격 DB 연결, 새 화면 파일, 익명 관리자 API 접근 차단을 확인했습니다. Cloudflare 자동 배포 연결은 설정하지 않았으므로 이후 배포는 `npm run deploy`로 수행합니다.
