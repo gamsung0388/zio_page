@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { session, api } from "./services/api.js";
+import { session, api, checkSession } from "./services/api.js";
 import Icon from "./components/Icon.vue";
 const route = useRoute(),
   router = useRouter();
@@ -26,6 +26,11 @@ function passwordRequired() {
 onMounted(() => {
   window.addEventListener("zio-session-expired", expired);
   window.addEventListener("zio-password-change-required", passwordRequired);
+  router.isReady().then(async () => {
+    if (!session.checked) await checkSession();
+  }).catch(() => {
+    // Public pages remain usable when the session check is unavailable.
+  });
 });
 onBeforeUnmount(
   () => (
@@ -36,7 +41,7 @@ onBeforeUnmount(
 </script>
 <template>
   <a class="skip-link" href="#main">본문 바로가기</a>
-  <header class="site-header">
+  <header class="site-header" :class="{ 'is-admin': session.user }">
     <div class="container header-inner">
       <RouterLink to="/" class="brand" aria-label="ZIO HOME 홈"
         ><img src="/favicon.svg" alt="" width="37" height="37" /><span
@@ -51,6 +56,11 @@ onBeforeUnmount(
           to="/songs"
           :class="{ active: route.path.startsWith('/songs') }"
           >노래책자</RouterLink
+        ><RouterLink
+          v-if="session.user"
+          to="/admin"
+          :class="{ active: route.path.startsWith('/admin') }"
+          >관리자 관리</RouterLink
         >
       </nav>
       <div class="admin-nav">
@@ -72,8 +82,8 @@ onBeforeUnmount(
         <p>오늘도 지오의 음악 공간에 함께해주셔서 고마워요.</p>
       </div>
       <div class="footer-right">
-        <RouterLink :to="session.user ? '/admin/songs' : '/admin/login'">{{
-          session.user ? "노래 관리" : "관리자 로그인"
+        <RouterLink :to="session.user ? '/admin' : '/admin/login'">{{
+          session.user ? "관리자 관리" : "관리자 로그인"
         }}</RouterLink
         ><span>© {{ new Date().getFullYear() }} ZIO HOME</span>
       </div>

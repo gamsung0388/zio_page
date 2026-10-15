@@ -8,6 +8,7 @@ import Notice from "../components/Notice.vue";
 import Icon from "../components/Icon.vue";
 import Modal from "../components/Modal.vue";
 import Pagination from "../components/Pagination.vue";
+defineProps({ resetMode: Boolean });
 const router = useRouter();
 const items = ref([]),
   total = ref(0),
@@ -68,15 +69,17 @@ onMounted(load);
 <template>
   <div class="container page admin-users-page">
     <div class="breadcrumb">
-      <RouterLink to="/">홈</RouterLink><span>/</span>관리자 관리
+      <RouterLink to="/">홈</RouterLink><span>/</span>
+      <RouterLink to="/admin">관리 메뉴</RouterLink><span>/</span>
+      {{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리" }}
     </div>
     <div class="page-heading">
       <div>
         <span class="eyebrow">YOUR ADMIN TEAM</span>
-        <h1>관리자 관리<span class="green-period">.</span></h1>
-        <p>관리자를 등록하고 계정별 비밀번호를 초기화하세요.</p>
+        <h1>{{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리" }}<span class="green-period">.</span></h1>
+        <p>{{ resetMode ? "초기화할 관리자 계정을 선택해주세요." : "관리자 목록을 확인하고 새 관리자를 등록하세요." }}</p>
       </div>
-      <button class="button primary" :disabled="busy" @click="creating = true">
+      <button v-if="!resetMode" class="button primary" :disabled="busy" @click="creating = true">
         <Icon name="plus" :size="18" />관리자 등록
       </button>
     </div>
@@ -88,8 +91,7 @@ onMounted(load);
       </button>
     </div>
     <p class="form-hint">
-      총 {{ total }}명의 관리자 · 모든 관리자는 노래 관리와 관리자 등록·초기화
-      권한을 갖습니다.
+      총 {{ total }}명의 관리자 · {{ resetMode ? "초기화 후 대상 계정의 기존 로그인이 모두 해제됩니다." : "모든 관리자는 동일한 관리 권한을 갖습니다." }}
     </p>
     <div class="results-panel" :aria-busy="loading">
       <Notice
@@ -128,6 +130,7 @@ onMounted(load);
             </div>
           </div>
           <button
+            v-if="resetMode"
             class="button secondary small"
             :disabled="busy"
             :aria-label="`${account.username} 비밀번호 초기화`"
@@ -151,12 +154,12 @@ onMounted(load);
       "
     />
     <AdminRegister
-      v-if="creating"
+      v-if="!resetMode && creating"
       @close="creating = false"
       @registered="registered"
     />
     <Modal
-      v-if="resetting"
+      v-if="resetMode && resetting"
       title="비밀번호를 초기화할까요?"
       :busy="busy"
       @close="resetting = null"

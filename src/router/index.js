@@ -24,6 +24,17 @@ const router = createRouter({
       meta: { title: "관리자 로그인" },
     },
     {
+      path: "/admin",
+      component: () => import("../pages/AdminHome.vue"),
+      meta: { title: "관리자 관리 메뉴", admin: true },
+    },
+    {
+      path: "/admin/password-reset",
+      component: () => import("../pages/AdminUsers.vue"),
+      props: { resetMode: true },
+      meta: { title: "관리자 비밀번호 초기화", admin: true },
+    },
+    {
       path: "/admin/users",
       component: () => import("../pages/AdminUsers.vue"),
       meta: { title: "관리자 관리", admin: true },
@@ -31,7 +42,7 @@ const router = createRouter({
     {
       path: "/admin/password",
       component: () => import("../pages/AdminPassword.vue"),
-      meta: { title: "비밀번호 변경", admin: true },
+      meta: { title: "관리자 비밀번호 변경", admin: true },
     },
     {
       path: "/admin/songs",

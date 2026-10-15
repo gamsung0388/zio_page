@@ -20,7 +20,7 @@ async function login() {
     Object.assign(session, data, { checked: true });
     password.value = "";
     router.replace(
-      data.user.must_change_password ? "/admin/password" : "/admin/songs",
+      data.user.must_change_password ? "/admin/password" : "/admin",
     );
   } catch (err) {
     error.value = err.message;
@@ -35,7 +35,7 @@ async function login() {
       <div class="login-icon"><Icon name="lock" :size="27" /></div>
       <span class="eyebrow">ZIO HOME ADMIN</span>
       <h1>다시 만나 반가워요.</h1>
-      <p>관리자 계정으로 노래책자를 관리하세요.</p>
+      <p>관리자 계정으로 노래책자와 관리자 계정을 관리하세요.</p>
       <p v-if="route.query.expired" class="form-hint" role="status">
         세션이 만료되었습니다. 다시 로그인해주세요.
       </p>
