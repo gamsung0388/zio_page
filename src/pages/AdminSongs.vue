@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
-import { notification } from "../services/notifications.js";
+import { notification, notify } from "../services/notifications.js";
 import { toSongView } from "../services/song-adapter.js";
 import { ref } from "vue";
 import { api, session, downloadBlob } from "../services/api.js";
@@ -44,7 +44,7 @@ const importing = ref(false),
   deleteError = ref("");
 function saved(message) {
   importing.value = false;
-  toast.value = message;
+  notify(message);
   actionError.value = "";
   load(true);
 }
@@ -74,7 +74,7 @@ async function remove() {
     deleting.value = null;
     if (items.value.length === 1 && page.value > 1) {
       update("page", page.value - 1);
-      toast.value = "노래를 삭제했습니다.";
+      notify("노래를 삭제했습니다.");
     } else saved("노래를 삭제했습니다.");
   } catch (err) {
     deleteError.value = err.message;
@@ -93,7 +93,7 @@ async function backup() {
       blob,
       `zio-songs-backup-${new Date().toISOString().slice(0, 10)}.csv`,
     );
-    toast.value = "전체 노래와 관리자 메모를 백업했습니다.";
+    notify("전체 노래와 관리자 메모를 백업했습니다.");
   } catch (err) {
     actionError.value = err.message;
   } finally {

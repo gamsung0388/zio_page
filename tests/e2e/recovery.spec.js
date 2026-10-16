@@ -416,3 +416,21 @@ test("confirmed logout clears drafts even when the session has already expired",
     page.getByRole("button", { name: "초안 복구", exact: true }),
   ).toHaveCount(0);
 });
+
+test("unfinished song inputs recover after reload, including an empty balloon count", async ({
+  page,
+}) => {
+  await page.goto("/admin/songs/new");
+  await page.getByLabel("곡명").fill("입력 중인 곡");
+  await page.getByLabel("신청 풍 개수").fill("");
+  await page.getByLabel("지오 메모").fill("PRIVATE_INCOMPLETE_DRAFT");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.reload();
+  await page.getByRole("button", { name: "초안 복구", exact: true }).click();
+  await expect(page.getByLabel("곡명")).toHaveValue("입력 중인 곡");
+  await expect(page.getByLabel("신청 풍 개수")).toHaveValue("");
+  await expect(page.getByLabel("지오 메모")).toHaveValue(
+    "PRIVATE_INCOMPLETE_DRAFT",
+  );
+  await expect(page.getByLabel("아티스트")).toHaveValue("");
+});

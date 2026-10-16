@@ -4,6 +4,7 @@ import LeafRating from "../components/LeafRating.vue";
 import StatusPill from "../components/StatusPill.vue";
 import { validateDraft } from "../services/song-adapter.js";
 import DraftRecovery from "../components/DraftRecovery.vue";
+import { isSongDraft } from "../services/song-draft.js";
 import { useEditorDraft } from "../services/useEditorDraft.js";
 import CoverImage from "../components/CoverImage.vue";
 const genres = ["가요", "발라드", "팝", "애니", "재즈", "기타"];
@@ -69,17 +70,7 @@ const drafts = useEditorDraft({
     links: form.links.map((link) => ({ ...link })),
     sourceUpdatedAt: props.song?.updatedAt || null,
   }),
-  validate(value) {
-    return (
-      value &&
-      Object.keys(form).every(
-        (key) =>
-          Object.hasOwn(value, key) && typeof value[key] === typeof form[key],
-      ) &&
-      Array.isArray(value.links) &&
-      JSON.stringify(value).length < 30000
-    );
-  },
+  validate: isSongDraft,
   apply(value) {
     if (
       isEdit.value &&

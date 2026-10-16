@@ -128,3 +128,33 @@ test("backup validation is lossless and rejects malformed dates, duplicates, hid
   size.editorOptions.contentFontSize = 43;
   assert.throws(() => validateSchedulePayload(size));
 });
+
+test("song recovery keeps incomplete numeric inputs and rejects structurally corrupt drafts", async () => {
+  const { isSongDraft } = await import("../src/services/song-draft.js");
+  const draft = {
+    title: "작성 중인 곡",
+    artist: "",
+    genre: "가요",
+    language: "",
+    description: "",
+    privateMemo: "private",
+    cover: "",
+    level: 0,
+    practiceStatus: "미연습",
+    balloonCount: "",
+    isPublic: true,
+    links: [],
+    sourceUpdatedAt: null,
+  };
+  assert.equal(isSongDraft(draft), true);
+  assert.equal(isSongDraft({ ...draft, balloonCount: 1.5 }), true);
+  for (const value of [
+    { ...draft, links: [null] },
+    { ...draft, links: [{ label: "YouTube", url: 123 }] },
+    { ...draft, privateMemo: {} },
+    { ...draft, isPublic: "true" },
+    { ...draft, extra: 1 },
+    { ...draft, balloonCount: null },
+  ])
+    assert.equal(isSongDraft(value), false);
+});
