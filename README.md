@@ -155,3 +155,7 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 - 한국 자정·브라우저 복귀 시 오늘 날짜를 갱신하면서 편집 중인 주/월은 유지합니다.
 
 기존 D1 스키마와 세션·CSRF 검사를 유지합니다. 새 유료 서비스·정기 폴링은 추가하지 않았습니다. SOOP 연동은 심사 승인 후 별도 연결 대상입니다.
+
+배포 후 다음 개선 순서는 [15 추가 개선 분석](docs/15_POST_RELEASE_REVIEW.md)에 정리했습니다.
+
+최종 운영 버전: `622f0f2c-c3b1-4b60-93da-a4d7326bbade` · 배포 소스 `34d490e` · 최종 86개 검증 통과. [수정·배포 기록](docs/14_REMEDIATION_RELEASE.md) / [다음 개선 분석](docs/15_POST_RELEASE_REVIEW.md).
