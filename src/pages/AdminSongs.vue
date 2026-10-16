@@ -1,4 +1,7 @@
 <script setup>
+import { useRoute, useRouter } from "vue-router";
+import { notification } from "../services/notifications.js";
+import { toSongView } from "../services/song-adapter.js";
 import { ref } from "vue";
 import { api, session, downloadBlob } from "../services/api.js";
 import { useSongs } from "../services/useSongs.js";
@@ -6,8 +9,7 @@ import { sortLabels, formatNumber } from "../services/song-labels.js";
 import Icon from "../components/Icon.vue";
 import Notice from "../components/Notice.vue";
 import SongFilters from "../components/SongFilters.vue";
-import SongList from "../components/SongList.vue";
-import SongForm from "../components/SongForm.vue";
+import SongCard from "../components/SongCard.vue";
 import CsvImport from "../components/CsvImport.vue";
 import Modal from "../components/Modal.vue";
 import Pagination from "../components/Pagination.vue";
@@ -26,21 +28,28 @@ const {
   search,
   reset,
 } = useSongs(true);
-const editing = ref(undefined),
-  importing = ref(false),
+const route = useRoute(),
+  router = useRouter();
+function edit(song) {
+  router.push({
+    path: song ? "/admin/songs/" + song.id + "/edit" : "/admin/songs/new",
+    query: { returnTo: route.fullPath },
+  });
+}
+const importing = ref(false),
   deleting = ref(null),
   busy = ref(false),
-  toast = ref(""),
+  toast = notification,
   actionError = ref(""),
   deleteError = ref("");
 function saved(message) {
-  editing.value = undefined;
   importing.value = false;
   toast.value = message;
   actionError.value = "";
   load(true);
 }
 async function toggle(song) {
+  if (busy.value) return;
   busy.value = true;
   actionError.value = "";
   toast.value = "";
@@ -57,6 +66,7 @@ async function toggle(song) {
   }
 }
 async function remove() {
+  if (busy.value) return;
   busy.value = true;
   deleteError.value = "";
   try {
@@ -73,6 +83,7 @@ async function remove() {
   }
 }
 async function backup() {
+  if (busy.value) return;
   busy.value = true;
   actionError.value = "";
   toast.value = "";
@@ -104,7 +115,7 @@ async function backup() {
           어떤 노래를 담아볼까요?
         </p>
       </div>
-      <button class="button primary" :disabled="busy" @click="editing = null">
+      <button class="button primary" :disabled="busy" @click="edit()">
         <Icon name="plus" :size="19" />새 노래 등록
       </button>
     </div>
@@ -125,12 +136,6 @@ async function backup() {
           <Icon name="download" :size="16" />전체 CSV 백업
         </button>
       </div>
-    </div>
-    <div v-if="toast" class="toast" role="status">
-      <Icon name="check" :size="19" />{{ toast
-      }}<button class="icon-button" aria-label="알림 닫기" @click="toast = ''">
-        <Icon name="close" :size="16" />
-      </button>
     </div>
     <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
     <SongFilters
@@ -182,18 +187,50 @@ async function backup() {
         title="등록된 노래가 없어요"
         message="새 노래를 등록하거나 CSV 파일을 가져와 노래책자를 채워보세요."
         @retry="load"
-      /><SongList
-        v-if="!loading && !error && items.length"
-        :songs="items"
-        admin
-        :busy="busy"
-        @edit="editing = $event"
-        @delete="
-          deleting = $event;
-          deleteError = '';
-        "
-        @toggle="toggle"
       />
+      <div
+        v-if="!loading && !error && items.length"
+        class="song-grid admin-song-grid"
+      >
+        <article v-for="song in items" :key="song.id" class="managed-song">
+          <SongCard :song="toSongView(song)" @open="edit(song)" />
+          <div class="song-management-actions">
+            <span
+              class="visibility-label"
+              :class="{ 'is-private': !song.is_public }"
+              >{{ song.is_public ? "공개" : "비공개" }}</span
+            >
+            <button
+              :disabled="busy"
+              :aria-label="song.title + ' 수정'"
+              @click="edit(song)"
+            >
+              수정
+            </button>
+            <button
+              :disabled="busy"
+              :aria-label="
+                song.title +
+                (song.is_public ? ' 비공개로 전환' : ' 공개로 전환')
+              "
+              @click="toggle(song)"
+            >
+              {{ song.is_public ? "비공개" : "공개" }}
+            </button>
+            <button
+              :disabled="busy"
+              class="delete-song"
+              :aria-label="song.title + ' 삭제'"
+              @click="
+                deleting = song;
+                deleteError = '';
+              "
+            >
+              삭제
+            </button>
+          </div>
+        </article>
+      </div>
     </div>
     <Pagination
       :page="page"
@@ -205,12 +242,7 @@ async function backup() {
       CSV 백업에는 비공개 곡과 관리자 메모가 포함됩니다. 안전한 위치에
       보관해주세요.
     </p>
-    <SongForm
-      v-if="editing !== undefined"
-      :song="editing"
-      @close="editing = undefined"
-      @saved="saved"
-    /><CsvImport
+    <CsvImport
       v-if="importing"
       @close="importing = false"
       @imported="saved"

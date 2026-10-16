@@ -24,6 +24,7 @@
 | PATCH | `/api/admin/password` | 현재 비밀번호 확인 후 본인 비밀번호 변경 |
 | POST | `/api/admin/users/:id/reset-password` | 초기 비밀번호 설정, 강제 변경, 세션 폐기 |
 | GET | `/api/admin/songs` | 공개/비공개 전체 조회 |
+| GET | `/api/admin/songs/:id` | 수정 폼용 단건 조회, 비공개·메모 포함, 인증 필수 |
 | POST | `/api/admin/songs` | 곡 생성 |
 | PATCH | `/api/admin/songs/:id` | 곡 수정 |
 | DELETE | `/api/admin/songs/:id` | 곡 삭제 |
@@ -42,3 +43,19 @@
 
 ## 관리자 계정 확장
 요청 필드·에러 코드·강제 변경 정책은 [09 관리자 계정](09_ADMIN_ACCOUNTS.md)을 따른다. 계정 응답에는 비밀번호·해시·salt를 포함하지 않는다. 초기화 상태에서는 me/logout/password 외 관리 API에 403 PASSWORD_CHANGE_REQUIRED를 반환한다.
+
+## 관리자 일정 관리 (추가 요청)
+
+| 메서드 | URL | 용도 |
+|---|---|---|
+| GET | `/api/admin/schedules?from=YYYY-MM-DD&to=YYYY-MM-DD` | 월간 달력 범위의 주간 문서 조회, 최대 63일 |
+| GET | `/api/admin/schedules/:week_start` | 월요일로 시작하는 주간 문서. 미저장 주는 revision 0과 기본값 |
+| PUT | `/api/admin/schedules/:week_start` | 주간 문서 저장. expected_revision 필수, 충돌 409 |
+
+인증·강제 비밀번호 변경 검사·Origin/CSRF 검증은 기존 관리자 미들웨어를 공유합니다. 모든 일정 응답은 no-store이며 공개 일정 API는 없습니다. 요청·검증·저장 필드와 마이그레이션은 [12 관리자 일정 관리](12_ADMIN_SCHEDULE.md)를 따릅니다.
+
+### 일정 JSON 백업
+
+`GET /api/admin/schedules/backup?after=YYYY-MM-DD`는 인증된 관리자에게 최대 50개의 주간 문서와 `next_after`를 반환합니다. 첫 요청은 after를 생략하며 다음 요청에는 반환된 커서를 전달합니다. 커서는 월요일 날짜이며 다른 쿼리·중복 after는 거부합니다. 마지막 페이지의 next_after는 null입니다. 기존 일정 조회와 동일하게 강제 비밀번호 변경 검사를 받고 no-store로 반환하며 updated_by나 계정 비밀값은 포함하지 않습니다.
+
+브라우저의 JSON 파일은 `{version:1,exported_at, weeks:[{week_start,selectedTemplate,scheduleForm,editorOptions}]}`입니다. 버전·주 날짜·중복·알 수 없는 항목·길이·템플릿·옵션을 공용 검증으로 확인합니다. 최대 2,000주·10MB이고 선택 주를 현재 주의 편집 화면에 가져온 뒤 기존 PUT과 expected_revision으로 수동 저장합니다. 새 쓰기 API나 일괄 강제 덮어쓰기는 추가하지 않았습니다.

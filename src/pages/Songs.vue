@@ -1,12 +1,15 @@
 <script setup>
+import { useRoute } from "vue-router";
 import { computed } from "vue";
 import { useSongs } from "../services/useSongs.js";
 import { sortLabels, formatNumber } from "../services/song-labels.js";
 import SongFilters from "../components/SongFilters.vue";
-import SongList from "../components/SongList.vue";
+import SongCard from "../components/SongCard.vue";
+import { toSongView } from "../services/song-adapter.js";
 import Pagination from "../components/Pagination.vue";
 import Notice from "../components/Notice.vue";
 import Icon from "../components/Icon.vue";
+const route = useRoute();
 const {
   items,
   total,
@@ -36,7 +39,7 @@ const hasFilters = computed(() =>
     <div class="page-heading">
       <div>
         <div class="eyebrow">ZIO'S SONGBOOK</div>
-        <h1>취향에 맞는 한 곡을 찾아요<span class="green-period">.</span></h1>
+        <h1>지오의 노래책자<span class="green-period">.</span></h1>
         <p>지오의 노래들을 한곳에. 듣고 싶은 노래를 천천히 골라보세요.</p>
       </div>
       <span class="heading-art" aria-hidden="true"
@@ -96,7 +99,18 @@ const hasFilters = computed(() =>
         ><button v-if="hasFilters" class="text-button" @click="reset">
           필터 초기화
         </button></Notice
-      ><SongList v-if="!loading && !error && items.length" :songs="items" />
+      >
+      <div v-if="!loading && !error && items.length" class="song-grid">
+        <SongCard
+          v-for="song in items"
+          :key="song.id"
+          :song="toSongView(song)"
+          :to="{
+            path: '/songs/' + song.id,
+            query: { returnTo: route.fullPath },
+          }"
+        />
+      </div>
     </div>
     <Pagination
       :page="page"

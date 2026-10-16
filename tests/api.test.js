@@ -87,6 +87,7 @@ before(async () => {
     "0001_initial.sql",
     "0002_security_and_indexes.sql",
     "0003_admin_password_change.sql",
+    "0004_admin_schedule_weeks.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -128,6 +129,7 @@ beforeEach(async () => {
     .run();
   await db.batch(
     [
+      "DELETE FROM admin_schedule_weeks",
       "DELETE FROM songs",
       "DELETE FROM admin_sessions",
       "DELETE FROM login_limits",
@@ -155,6 +157,7 @@ test("health distinguishes Worker and database, unknown API remains JSON", async
 test("anonymous users cannot access any admin read, write, CSV or initialization endpoint", async () => {
   for (const [method, path] of [
     ["GET", "/songs"],
+    ["GET", "/songs/1"],
     ["POST", "/songs"],
     ["PATCH", "/songs/1"],
     ["DELETE", "/songs/1"],
@@ -1097,4 +1100,314 @@ test("a legacy account using the initialization password must also change it aft
     ).must_change_password,
     1,
   );
+});
+
+test("admin editor can reload a private song with memo while public API cannot reveal it", async () => {
+  const auth = await login();
+  const saved = await create(auth, song({ is_public: false }));
+  const response = await request(
+    "/api/admin/songs/" + saved.id,
+    "GET",
+    undefined,
+    auth,
+  );
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).memo, "PRIVATE_TEST_MEMO");
+  assert.equal((await request("/api/songs/" + saved.id)).status, 404);
+  assert.equal((await request("/api/admin/songs/" + saved.id)).status, 401);
+  assert.equal(
+    (await request("/api/admin/songs/999999", "GET", undefined, auth)).status,
+    404,
+  );
+});
+
+const schedulePayload = (extra = {}) => ({
+  expected_revision: 0,
+  selectedTemplate: "images/schedule/zio-schedule-template.png",
+  scheduleForm: Object.fromEntries(
+    ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key) => [
+      key,
+      { content: "", time: "" },
+    ]),
+  ),
+  editorOptions: {
+    contentFontSize: 25,
+    timeFontSize: 25,
+    textColor: "#1f3f18",
+    bold: true,
+    align: "left",
+    hideColon: false,
+  },
+  ...extra,
+});
+test("private schedule API requires authentication, Origin, CSRF and changed passwords", async () => {
+  for (const [path, method] of [
+    ["/api/admin/schedules?from=2026-10-01&to=2026-10-31", "GET"],
+    ["/api/admin/schedules/2026-10-12", "GET"],
+    ["/api/admin/schedules/2026-10-12", "PUT"],
+  ])
+    assert.equal(
+      (
+        await request(
+          path,
+          method,
+          method === "PUT" ? schedulePayload() : undefined,
+        )
+      ).status,
+      401,
+    );
+  assert.equal((await request("/api/schedules")).status, 404);
+  const auth = await login();
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedules/2026-10-12",
+        "PUT",
+        schedulePayload(),
+        { ...auth, csrfToken: "" },
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedules/2026-10-12",
+        "PUT",
+        schedulePayload(),
+        auth,
+        { Origin: "https://elsewhere.invalid" },
+      )
+    ).status,
+    403,
+  );
+  await db.prepare("UPDATE admin_users SET must_change_password=1").run();
+  for (const method of ["GET", "PUT"]) {
+    const response = await request(
+      "/api/admin/schedules/2026-10-12",
+      method,
+      method === "PUT" ? schedulePayload() : undefined,
+      auth,
+    );
+    assert.equal(response.status, 403);
+    assert.equal(
+      (await response.json()).error.code,
+      "PASSWORD_CHANGE_REQUIRED",
+    );
+  }
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM admin_schedule_weeks").first()).n,
+    0,
+  );
+});
+test("weekly schedules persist once, keep multiline/Korean data and share the calendar range", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  const empty = await request(path, "GET", undefined, auth);
+  assert.equal(empty.status, 200);
+  assert.equal((await empty.json()).revision, 0);
+  assert.equal(empty.headers.get("Cache-Control"), "no-store");
+  const payload = schedulePayload();
+  payload.scheduleForm.mon = {
+    content: "노래 방송 🎵\n함께해요",
+    time: "20:30",
+  };
+  payload.scheduleForm.tue = { content: "휴방", time: "" };
+  assert.equal((await request(path, "PUT", payload, auth)).status, 201);
+  const saved = await (await request(path, "GET", undefined, auth)).json();
+  assert.equal(saved.revision, 1);
+  assert.deepEqual(saved.scheduleForm, payload.scheduleForm);
+  const list = await (
+    await request(
+      "/api/admin/schedules?from=2026-10-01&to=2026-10-31",
+      "GET",
+      undefined,
+      auth,
+    )
+  ).json();
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0].week_start, "2026-10-12");
+  assert.equal("updated_by" in list.items[0], false);
+  const update = { ...payload, expected_revision: 1 };
+  update.scheduleForm.mon = { content: "", time: "" };
+  const changed = await request(path, "PUT", update, auth);
+  assert.equal(changed.status, 200);
+  const data = await changed.json();
+  assert.equal(data.revision, 2);
+  assert.equal(data.scheduleForm.tue.content, "휴방");
+});
+test("schedule revision checks reject concurrent creation and edits without losing saved content", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  const results = await Promise.all([
+    request(path, "PUT", schedulePayload(), auth),
+    request(path, "PUT", schedulePayload(), auth),
+  ]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
+  const a = schedulePayload({ expected_revision: 1 }),
+    b = schedulePayload({ expected_revision: 1 });
+  a.scheduleForm.mon.content = "먼저 A";
+  b.scheduleForm.mon.content = "먼저 B";
+  const updated = await Promise.all([
+    request(path, "PUT", a, auth),
+    request(path, "PUT", b, auth),
+  ]);
+  assert.deepEqual(updated.map((r) => r.status).sort(), [200, 409]);
+  const saved = await (await request(path, "GET", undefined, auth)).json();
+  assert.equal(saved.revision, 2);
+  assert.ok(["먼저 A", "먼저 B"].includes(saved.scheduleForm.mon.content));
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedules/2026-10-19",
+        "PUT",
+        schedulePayload({ expected_revision: 9 }),
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM admin_schedule_weeks").first()).n,
+    1,
+  );
+});
+test("schedule validation bounds ranges, template URLs, text, option values and unknown keys", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  for (const query of [
+    "",
+    "from=2026-02-30&to=2026-03-01",
+    "from=2026-01-01&to=2026-12-31",
+    "from=2026-10-31&to=2026-10-01",
+    "from=2026-10-01&to=2026-10-31&sql=bad",
+  ])
+    assert.equal(
+      (await request("/api/admin/schedules?" + query, "GET", undefined, auth))
+        .status,
+      400,
+    );
+  for (const date of ["2026-10-13", "2026-02-30"])
+    assert.equal(
+      (await request("/api/admin/schedules/" + date, "GET", undefined, auth))
+        .status,
+      400,
+    );
+  const cases = [
+    { selectedTemplate: "https://external.invalid/image.png" },
+    { expected_revision: -1 },
+    { expected_revision: 1.5 },
+    { extra: true },
+    { editorOptions: { ...schedulePayload().editorOptions, textColor: "red" } },
+    {
+      editorOptions: {
+        ...schedulePayload().editorOptions,
+        contentFontSize: 99,
+      },
+    },
+    {
+      editorOptions: { ...schedulePayload().editorOptions, align: "__proto__" },
+    },
+  ];
+  for (const extra of cases)
+    assert.equal(
+      (await request(path, "PUT", schedulePayload(extra), auth)).status,
+      422,
+    );
+  for (const [field, value] of [
+    ["content", "x".repeat(501)],
+    ["time", 42],
+    ["time", "x".repeat(41)],
+  ]) {
+    const payload = schedulePayload();
+    payload.scheduleForm.mon[field] = value;
+    assert.equal((await request(path, "PUT", payload, auth)).status, 422);
+  }
+  const pollution = schedulePayload();
+  pollution.scheduleForm.mon.extra = "ignored?";
+  assert.equal((await request(path, "PUT", pollution, auth)).status, 422);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM admin_schedule_weeks").first()).n,
+    0,
+  );
+});
+
+test("successful logins release their own rate reservations while failed guesses remain limited", async () => {
+  for (let index = 0; index < 12; index++) await login();
+  const counts = await db.prepare("SELECT attempts FROM login_limits").all();
+  assert.ok(counts.results.every((row) => row.attempts === 0));
+  for (let index = 0; index < 10; index++)
+    assert.equal(
+      (
+        await request("/api/admin/login", "POST", {
+          username: "test-admin",
+          password: "wrong-password",
+        })
+      ).status,
+      401,
+    );
+  assert.equal(
+    (
+      await request("/api/admin/login", "POST", {
+        username: "test-admin",
+        password,
+      })
+    ).status,
+    429,
+  );
+});
+test("full schedule backup is authenticated, ordered, paginated and never exposes actor data", async () => {
+  assert.equal((await request("/api/admin/schedules/backup")).status, 401);
+  const auth = await login();
+  const { createScheduleForm, createEditorOptions } =
+    await import("../shared/schedule/scheduleFactory.js");
+  const { DEFAULT_TEMPLATE } =
+    await import("../shared/schedule/scheduleConfig.js");
+  const { addDays } = await import("../shared/schedule/dates.js");
+  const payload = JSON.stringify({
+    selectedTemplate: DEFAULT_TEMPLATE,
+    scheduleForm: createScheduleForm(),
+    editorOptions: createEditorOptions(),
+  });
+  await db.batch(
+    Array.from({ length: 53 }, (_, index) =>
+      db
+        .prepare(
+          "INSERT INTO admin_schedule_weeks (week_start,payload,updated_by) VALUES (?,?,1)",
+        )
+        .bind(addDays("2027-01-04", index * 7), payload),
+    ),
+  );
+  const first = await (
+    await request("/api/admin/schedules/backup", "GET", null, auth)
+  ).json();
+  assert.equal(first.items.length, 50);
+  assert.equal(first.next_after, addDays("2027-01-04", 49 * 7));
+  assert.ok(first.items.every((item) => !Object.hasOwn(item, "updated_by")));
+  const second = await (
+    await request(
+      "/api/admin/schedules/backup?after=" + first.next_after,
+      "GET",
+      null,
+      auth,
+    )
+  ).json();
+  assert.equal(second.items.length, 3);
+  assert.equal(second.next_after, null);
+  assert.equal(
+    new Set([...first.items, ...second.items].map((item) => item.week_start))
+      .size,
+    53,
+  );
+  for (const query of [
+    "?after=2027-01-05",
+    "?after=",
+    "?extra=1",
+    "?after=2027-01-04&after=2027-01-11",
+  ])
+    assert.equal(
+      (await request("/api/admin/schedules/backup" + query, "GET", null, auth))
+        .status,
+      400,
+    );
 });

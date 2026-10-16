@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { api, session } from "../services/api.js";
+import { safeReturnTo } from "../services/return-to.js";
 import Icon from "../components/Icon.vue";
 const username = ref(""),
   password = ref(""),
@@ -19,8 +20,11 @@ async function login() {
     });
     Object.assign(session, data, { checked: true });
     password.value = "";
+    const next = safeReturnTo(route.query.next);
     router.replace(
-      data.user.must_change_password ? "/admin/password" : "/admin",
+      data.user.must_change_password
+        ? { path: "/admin/password", query: next ? { next } : {} }
+        : next || "/admin",
     );
   } catch (err) {
     error.value = err.message;

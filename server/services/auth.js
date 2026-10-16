@@ -10,6 +10,7 @@ import {
 import {
   findUser,
   reserveLoginAttempt,
+  releaseLoginAttempts,
   createSession,
 } from "../repositories/auth.js";
 
@@ -27,22 +28,16 @@ export async function login(db, credentials, ip) {
   }
   const now = Math.floor(Date.now() / 1000);
   // Reserve before verification so concurrent requests cannot bypass the counter.
-  const ipAttempt = await reserveLoginAttempt(
-    db,
-    await sha256(`ip:${ip}`),
-    now,
-  );
+  const ipKey = await sha256(`ip:${ip}`),
+    accountKey = await sha256(`user:${username}`);
+  const ipAttempt = await reserveLoginAttempt(db, ipKey, now);
   if (ipAttempt.attempts > 10)
     throw new ApiError(
       429,
       "RATE_LIMIT",
       "로그인 시도가 많습니다. 15분 후 다시 시도해주세요.",
     );
-  const accountAttempt = await reserveLoginAttempt(
-    db,
-    await sha256(`user:${username}`),
-    now,
-  );
+  const accountAttempt = await reserveLoginAttempt(db, accountKey, now);
   if (accountAttempt.attempts > 20)
     throw new ApiError(
       429,
@@ -71,6 +66,10 @@ export async function login(db, credentials, ip) {
       .run();
     user.must_change_password = 1;
   }
+  await releaseLoginAttempts(db, [
+    { key: ipKey, expires_at: ipAttempt.expires_at },
+    { key: accountKey, expires_at: accountAttempt.expires_at },
+  ]);
   const token = randomToken();
   await createSession(
     db,

@@ -15,6 +15,18 @@ export async function reserveLoginAttempt(db, keyHash, now) {
     .bind(keyHash, now + 900, now, now)
     .first();
 }
+// Remove only this successful request's reservation; concurrent failures remain counted.
+export async function releaseLoginAttempts(db, attempts) {
+  await db.batch(
+    attempts.map(({ key, expires_at }) =>
+      db
+        .prepare(
+          "UPDATE login_limits SET attempts=MAX(0,attempts-1) WHERE key_hash=? AND expires_at=?",
+        )
+        .bind(key, expires_at),
+    ),
+  );
+}
 export async function createSession(db, userId, tokenHash, expiresAt) {
   // Opportunistic bounded cleanup; no scheduler needed.
   await db.batch([

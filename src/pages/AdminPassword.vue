@@ -1,11 +1,13 @@
 <script setup>
 import { ref, reactive, computed, useId } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { api, session } from "../services/api.js";
+import { safeReturnTo } from "../services/return-to.js";
 import AdminNav from "../components/AdminNav.vue";
 import Icon from "../components/Icon.vue";
 const prefix = useId(),
-  router = useRouter();
+  router = useRouter(),
+  route = useRoute();
 const forced = computed(() => Boolean(session.user?.must_change_password));
 const draft = reactive({
   current_password: "",
@@ -30,7 +32,11 @@ async function save() {
     draft.password_confirmation = "";
     session.user = null;
     session.csrfToken = "";
-    router.replace("/admin/login?password_changed=1");
+    const next = safeReturnTo(route.query.next);
+    router.replace({
+      path: "/admin/login",
+      query: { password_changed: "1", ...(next ? { next } : {}) },
+    });
   } catch (err) {
     error.value = err.message;
     details.value = err.details || [];
@@ -43,7 +49,10 @@ async function save() {
   <div class="container page admin-password-page">
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>
-      <template v-if="!forced"><RouterLink to="/admin">관리자 메뉴</RouterLink><span>/</span></template>
+      <template v-if="!forced"
+        ><RouterLink to="/admin">관리자 메뉴</RouterLink
+        ><span>/</span></template
+      >
       관리자 비밀번호 변경
     </div>
     <div class="page-heading">

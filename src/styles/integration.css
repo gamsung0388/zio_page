@@ -1,0 +1,405 @@
+/* Shared UI with the existing account, filters and CSV components. */
+.integrated-app {
+  color: #21382c;
+  background: #f7f8f4;
+}
+.integrated-app .container {
+  width: 100%;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+}
+.integrated-app .page {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.integrated-app .site-footer {
+  background: transparent;
+  display: flex;
+  gap: 16px;
+}
+.integrated-app .sidebar .sidebar-item.router-link-active:not(.active) {
+  background: transparent;
+  color: #f3f8f2;
+}
+.integrated-app .sidebar .sidebar-item.active {
+  background: rgba(157, 218, 115, 0.22);
+  color: #d5f4bd;
+}
+.integrated-app .page-heading {
+  margin-bottom: 25px;
+  gap: 20px;
+}
+.integrated-app .page-heading h1 {
+  font-size: 32px;
+  letter-spacing: -1.2px;
+}
+.integrated-app .page-heading p {
+  font-size: 13px;
+  color: #627460;
+}
+.integrated-app .heading-art {
+  display: none;
+}
+.integrated-app .breadcrumb {
+  margin-bottom: 22px;
+  font-size: 12px;
+}
+.integrated-app .filters-panel,
+.integrated-app .admin-tools {
+  border-color: #e5eae3;
+  background: #fff;
+  border-radius: 14px;
+}
+.integrated-app .filter-row {
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.integrated-app .filter-row select {
+  max-width: 100%;
+}
+.integrated-app .results-panel {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.integrated-app .results-toolbar {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.integrated-app .results-toolbar > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.integrated-app .button {
+  border-radius: 10px;
+  min-height: 44px;
+}
+.integrated-app .button.primary {
+  background: #1b4b32;
+  color: #fff;
+  border-color: #1b4b32;
+}
+.integrated-app .login-page {
+  padding: 15px 0 45px;
+  min-height: 0;
+}
+.integrated-app .login-card {
+  border-color: #e5eae3;
+  border-radius: 20px;
+  max-width: 480px;
+  margin: auto;
+}
+.integrated-app .field {
+  margin-bottom: 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.integrated-app .song-form .field {
+  margin-bottom: 0;
+}
+.integrated-app
+  .field
+  input:not([type="radio"]):not([type="file"]):not([type="checkbox"]),
+.integrated-app .field select,
+.integrated-app .field textarea {
+  min-height: 45px;
+  border: 1px solid #dfe7dd;
+  border-radius: 9px;
+  background: #fbfcfa;
+  width: 100%;
+  padding: 10px 14px;
+}
+.integrated-app .song-form .field textarea {
+  padding: 14px;
+}
+.integrated-app .editor-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.integrated-app .editor-fields:disabled {
+  opacity: 0.72;
+}
+.integrated-app .form-error {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.integrated-app .form-actions {
+  justify-content: flex-end;
+}
+.integrated-app .toast {
+  position: fixed;
+  left: auto;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100;
+  max-width: min(480px, calc(100vw - 32px));
+  background: #edf7e4;
+  border: 1px solid #c4dcb6;
+  color: #244d2b;
+  box-shadow: 0 6px 24px #11372620;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+.integrated-app .toast .icon-button {
+  flex: 0 0 30px;
+}
+.integrated-app .modal {
+  color: #21382c;
+}
+.integrated-app .admin-menu-card {
+  border-color: #e5eae3;
+  border-radius: 16px;
+}
+.integrated-app .admin-menu-icon {
+  background: #edf7e4;
+  color: #276443;
+}
+.integrated-app .admin-tabs a.active {
+  background: #edf7e4;
+  color: #276443;
+}
+.integrated-app .song-grid {
+  margin-top: 16px;
+}
+.integrated-app .song-card {
+  width: 100%;
+}
+.integrated-app .song-card-title,
+.integrated-app .detail-title-area h1,
+.integrated-app .detail-artist {
+  overflow-wrap: anywhere;
+}
+.integrated-app .detail-description {
+  margin: 0;
+}
+.integrated-app .detail-cover {
+  aspect-ratio: 1;
+}
+.integrated-app .detail-top {
+  border: 1px solid #e5eae3;
+}
+.integrated-app .detail-stats {
+  display: block;
+  background: white;
+}
+.managed-song {
+  min-width: 0;
+  border: 1px solid #e5eae3;
+  border-radius: 14px;
+  background: white;
+  overflow: hidden;
+}
+.managed-song .song-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.song-management-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 10px;
+  border-top: 1px solid #edf1e9;
+  font-size: 12px;
+}
+.song-management-actions button {
+  border: 1px solid #dfe7dd;
+  background: #fff;
+  border-radius: 6px;
+  padding: 7px 8px;
+  color: #355b3b;
+  min-height: 36px;
+}
+.song-management-actions button:hover {
+  background: #edf7e4;
+}
+.song-management-actions .delete-song {
+  color: #a34740;
+}
+.visibility-label {
+  font-size: 11px;
+  color: #477b3f;
+  margin-right: auto;
+  padding: 4px;
+}
+.visibility-label.is-private {
+  color: #8b625d;
+}
+.session-name {
+  font-size: 12px;
+  color: #627460;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.integrated-app .home-hero {
+  min-height: 300px;
+}
+.integrated-app .home-hero-copy {
+  padding: 30px 20px 30px 40px;
+}
+.integrated-app .hero-eyebrow {
+  margin-bottom: 14px;
+}
+.integrated-app .home-hero h1 {
+  font-size: clamp(36px, 3vw, 48px);
+  margin-bottom: 12px;
+}
+.integrated-app .home-hero p {
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+.integrated-app .home-hero .hero-image-wrap img {
+  height: 100%;
+}
+.integrated-app .home-section {
+  margin-top: 28px;
+}
+.integrated-app .topbar .text-button {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.integrated-app .sidebar-brand {
+  text-decoration: none;
+}
+@media (min-width: 1251px) {
+  .integrated-app .page-content {
+    padding-top: 26px;
+  }
+}
+@media (max-width: 1250px) and (min-width: 921px) {
+  .integrated-app .song-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 920px) {
+  .integrated-app .song-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .integrated-app .page-heading h1 {
+    font-size: 28px;
+  }
+  .session-name {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .integrated-app .page-content {
+    padding: 18px 15px 40px;
+  }
+  .integrated-app .song-grid {
+    grid-template-columns: 1fr;
+  }
+  .integrated-app .home-hero {
+    min-height: 300px;
+  }
+  .integrated-app .home-hero-copy {
+    padding: 27px 18px 25px 23px;
+  }
+  .integrated-app .home-hero h1 {
+    font-size: 34px;
+  }
+  .integrated-app .home-hero p {
+    font-size: 11px;
+  }
+  .integrated-app .hero-actions .btn {
+    white-space: normal;
+  }
+  .integrated-app .topbar {
+    padding: 0 12px;
+    gap: 0;
+  }
+  .integrated-app .topbar-right {
+    gap: 10px;
+  }
+  .integrated-app .topbar-breadcrumb {
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+  .integrated-app .topbar-dot {
+    display: none;
+  }
+  .integrated-app .mobile-menu-button {
+    margin-right: 7px;
+    flex-shrink: 0;
+  }
+  .integrated-app .page-heading h1 {
+    font-size: 27px;
+  }
+  .integrated-app .filter-row label {
+    flex: 1 1 125px;
+    min-width: 0;
+  }
+  .integrated-app .filter-row select {
+    width: 100%;
+    font-size: 12px;
+  }
+  .integrated-app .filter-caption {
+    display: none;
+  }
+  .integrated-app .results-toolbar {
+    font-size: 12px;
+  }
+  .integrated-app .results-toolbar select {
+    font-size: 12px;
+  }
+  .integrated-app .login-card {
+    padding: 25px 20px;
+  }
+  .integrated-app .login-card h1 {
+    font-size: 25px;
+  }
+  .integrated-app .song-form {
+    padding: 19px;
+  }
+  .integrated-app .form-actions {
+    position: static;
+    margin: 20px 0 0;
+    padding: 16px 0 0;
+    box-shadow: none;
+  }
+  .integrated-app .toast {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+  .integrated-app .admin-tools {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .integrated-app .admin-tools > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .integrated-app .detail-title-area h1 {
+    word-break: normal;
+  }
+  .song-management-actions {
+    padding: 8px 10px;
+  }
+}
+
+.integrated-app .field .private-indicator {
+  display: inline-block;
+  width: auto;
+  align-self: flex-start;
+}
+.integrated-app .form-aside.connected {
+  grid-template-columns: 1fr;
+}

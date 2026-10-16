@@ -1,3 +1,4 @@
+import { scheduleRoutes } from "./schedules.js";
 import { registerAdmin } from "../services/admin-users.js";
 import { listAdmins } from "../repositories/admin-users.js";
 import { resetPassword, changePassword } from "../services/passwords.js";
@@ -18,6 +19,7 @@ import { deleteSession } from "../repositories/auth.js";
 import { parseFilters, validateSong } from "../services/song-validation.js";
 import {
   listSongs,
+  getSong,
   createSong,
   updateSong,
   deleteSong,
@@ -43,6 +45,11 @@ export async function adminRoutes(request, env, path) {
     });
   }
   const auth = await requireAdmin(request, env);
+  if (
+    path === "/api/admin/schedules" ||
+    path.startsWith("/api/admin/schedules/")
+  )
+    return scheduleRoutes(request, env, path, auth);
   if (path === "/api/admin/me" && request.method === "GET")
     return json({ user: auth.user, csrfToken: auth.csrfToken });
   if (path === "/api/admin/logout" && request.method === "POST") {
@@ -150,6 +157,12 @@ export async function adminRoutes(request, env, path) {
   const match = path.match(/^\/api\/admin\/songs\/(\d+)$/);
   if (match) {
     const id = positiveId(match[1]);
+    if (request.method === "GET") {
+      const song = await getSong(env.DB, id, true);
+      if (!song)
+        throw new ApiError(404, "NOT_FOUND", "노래를 찾을 수 없습니다.");
+      return json(song);
+    }
     if (request.method === "PATCH") {
       const song = await updateSong(
         env.DB,

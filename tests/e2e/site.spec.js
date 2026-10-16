@@ -4,7 +4,9 @@ test.describe.configure({ mode: "serial" });
 const issues = [];
 async function openAdminMenu(page, label) {
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByRole("button", { name: /비밀번호 초기화/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /비밀번호 초기화/ }),
+  ).toHaveCount(0);
   await page
     .getByRole("navigation", { name: "관리 기능 선택", exact: true })
     .getByRole("link", { name: label, exact: true })
@@ -15,16 +17,20 @@ test.beforeEach(async ({ page }) => {
 });
 test("home, empty state, 404 and protected admin routes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("navigation", { name: "주 메뉴", exact: true }).getByRole("link", { name: "관리자 관리", exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "지오의 노래가 머무는 곳." }),
+    page
+      .getByRole("navigation", { name: "주 메뉴", exact: true })
+      .getByRole("link", { name: "관리자 관리", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: /지오의 작은\s*음악 공간/ }),
   ).toBeVisible();
   await expect(page.getByText("첫 번째 노래를 기다리고 있어요")).toBeVisible();
   await page.getByRole("link", { name: "노래책자 둘러보기" }).click();
   await expect(page).toHaveURL(/\/songs$/);
   await expect(page.getByText("아직 등록된 노래가 없어요")).toBeVisible();
   await page.goto("/admin/songs");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);
   await page.goto("/not-a-real-route");
   await expect(
     page.getByRole("heading", { name: "잠깐, 다른 길로 왔네요." }),
@@ -76,23 +82,40 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
     .fill(process.env.ZIO_E2E_PASSWORD);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);
-  const mainMenu = page.getByRole("navigation", { name: "주 메뉴", exact: true });
-  await expect(page.getByRole("navigation", { name: "관리 기능 선택", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
+  const mainMenu = page.getByRole("navigation", {
+    name: "주 메뉴",
+    exact: true,
+  });
+  await expect(
+    page
+      .getByRole("navigation", { name: "관리 기능 선택", exact: true })
+      .getByRole("link", { name: "노래 관리", exact: true }),
+  ).toHaveCount(0);
   await mainMenu.getByRole("link", { name: "노래 관리", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs$/);
-  await expect(mainMenu.getByRole("link", { name: "노래 관리", exact: true })).toHaveClass(/active/);
-  await expect(mainMenu.getByRole("link", { name: "관리자 관리", exact: true })).not.toHaveClass(/active/);
-  await expect(page.getByRole("button", { name: "관리자 등록", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "관리자 메뉴", exact: true })).toHaveCount(0);
+  await expect(
+    mainMenu.getByRole("link", { name: "노래 관리", exact: true }),
+  ).toHaveClass(/active/);
+  await expect(
+    mainMenu.getByRole("link", { name: "관리자 관리", exact: true }),
+  ).not.toHaveClass(/active/);
+  await expect(
+    page.getByRole("button", { name: "관리자 등록", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("navigation", { name: "관리자 메뉴", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "새 노래 등록" }).click();
+  const editor = page.getByRole("form", { name: "노래 입력" });
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("곡명").fill("QA 전용 곡");
-  await dialog.getByLabel("가수").fill("검증용 가수");
-  await dialog.getByLabel("장르", { exact: true }).fill("발라드");
-  await dialog.getByLabel("언어", { exact: true }).fill("한국어");
-  await dialog.getByLabel("신청 필요 풍 개수").fill("77");
-  await dialog.getByLabel("관리자 메모").fill("PUBLIC_MUST_NOT_SEE");
-  await dialog.getByRole("button", { name: "저장하기" }).click();
+  await editor.getByLabel("곡명").fill("QA 전용 곡");
+  await editor.getByLabel("아티스트").fill("검증용 가수");
+  await editor.getByLabel("장르", { exact: true }).fill("발라드");
+  await editor.getByLabel("언어", { exact: true }).fill("한국어");
+  await editor.getByLabel("신청 풍 개수").fill("77");
+  await editor.getByLabel("지오 메모").fill("PUBLIC_MUST_NOT_SEE");
+  await editor.getByRole("button", { name: "숙련도 1단계 선택" }).click();
+  await editor.getByRole("button", { name: "등록하기", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "새 노래를 등록했습니다." }),
   ).toBeVisible();
@@ -105,14 +128,14 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
     fullPage: true,
   });
   await page.getByRole("button", { name: "QA 전용 곡 수정" }).click();
-  await dialog.getByLabel("숙련도", { exact: true }).selectOption("5");
-  await expect(dialog.getByLabel("연습 상태", { exact: true })).toHaveValue(
-    "not_started",
-  );
-  await dialog
+  await editor.getByRole("button", { name: "숙련도 5단계 선택" }).click();
+  await expect(
+    editor.getByRole("radio", { name: "미연습", exact: true }),
+  ).toBeChecked();
+  await editor
     .getByLabel("공개 상태", { exact: true })
     .selectOption({ label: "비공개" });
-  await dialog.getByRole("button", { name: "저장하기" }).click();
+  await editor.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "노래를 수정했습니다." }),
   ).toBeVisible();
@@ -188,9 +211,9 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
     page.getByRole("button", { name: "QA 전용 곡", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);
   await page.goto("/admin/songs");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);
   expect(issues).toEqual([]);
 });
 
@@ -209,22 +232,49 @@ test("administrator can register another administrator and the new account can l
     .fill(process.env.ZIO_E2E_PASSWORD);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);
-  await page.screenshot({ path: "test-results/screenshots/admin-menu-desktop.png", fullPage: true });
+  await page.screenshot({
+    path: "test-results/screenshots/admin-menu-desktop.png",
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 360, height: 900 });
   await page.goto("/");
   await page.reload();
-  const headerMenu = page.getByRole("navigation", { name: "주 메뉴", exact: true }).getByRole("link", { name: "관리자 관리", exact: true });
+  const headerMenu = page
+    .getByRole("navigation", { name: "주 메뉴", exact: true })
+    .getByRole("link", { name: "관리자 관리", exact: true });
+  await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
   await expect(headerMenu).toBeVisible();
   await headerMenu.click();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(headerMenu).toHaveClass(/active/);
-  await expect(page.getByRole("navigation", { name: "주 메뉴", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).not.toHaveClass(/active/);
-  await expect(page.getByRole("navigation", { name: "관리 기능 선택", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: "test-results/screenshots/admin-menu-360.png", fullPage: true });
+  await expect(
+    page.locator(".sidebar-item").filter({ hasText: "관리자 관리" }),
+  ).toHaveClass(/active/);
+  await expect(
+    page.locator(".sidebar-item").filter({ hasText: "노래 관리" }),
+  ).not.toHaveClass(/active/);
+  await expect(
+    page
+      .getByRole("navigation", { name: "관리 기능 선택", exact: true })
+      .getByRole("link", { name: "노래 관리", exact: true }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/screenshots/admin-menu-360.png",
+    fullPage: true,
+  });
   await openAdminMenu(page, "관리자 관리");
-  await expect(page.getByRole("navigation", { name: "관리자 메뉴", exact: true }).getByRole("link", { name: "노래 관리", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /비밀번호 초기화/ })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("navigation", { name: "관리자 메뉴", exact: true })
+      .getByRole("link", { name: "노래 관리", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /비밀번호 초기화/ }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "관리자 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "관리자 등록", exact: true });
   await expect(dialog).toBeVisible();
@@ -270,12 +320,14 @@ test("administrator can register another administrator and the new account can l
   );
   await dialog.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);
   await page.getByLabel("아이디", { exact: true }).fill(username);
   await page.getByLabel("비밀번호", { exact: true }).fill(newPassword);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByText("추가 QA 관리자님,", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("추가 QA 관리자님,", { exact: false }),
+  ).toBeVisible();
   await openAdminMenu(page, "관리자 관리");
   await expect(
     page.getByRole("button", { name: "관리자 등록", exact: true }),
@@ -309,10 +361,18 @@ test("administrator resets a password and target must change it before using adm
   await registration.getByLabel("비밀번호 확인", { exact: true }).fill(pass);
   await registration.getByRole("button", { name: "관리자 등록하기" }).click();
   await expect(registration).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /비밀번호 초기화/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /비밀번호 초기화/ }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 950 });
-  await page.screenshot({ path: "test-results/screenshots/admin-users-390.png", fullPage: true });
-  await page.getByRole("navigation", { name: "관리자 메뉴", exact: true }).getByRole("link", { name: "관리자 비밀번호 초기화", exact: true }).click();
+  await page.screenshot({
+    path: "test-results/screenshots/admin-users-390.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("navigation", { name: "관리자 메뉴", exact: true })
+    .getByRole("link", { name: "관리자 비밀번호 초기화", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/admin\/password-reset$/);
   await expect(
     page.getByRole("button", { name: `${username} 비밀번호 초기화` }),
@@ -336,17 +396,17 @@ test("administrator resets a password and target must change it before using adm
     page.getByRole("status").filter({ hasText: "비밀번호를 초기화했습니다." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);
   await page.getByLabel("아이디", { exact: true }).fill(username);
   await page.getByLabel("비밀번호", { exact: true }).fill("qwer1234!@#$");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/password$/);
+  await expect(page).toHaveURL(/\/admin\/password(?:\?|$)/);
   await expect(page.getByRole("status")).toContainText(
     "비밀번호의 변경이 필요합니다.",
   );
   for (const path of ["/admin", "/admin/users", "/admin/password-reset"]) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/admin\/password$/);
+    await expect(page).toHaveURL(/\/admin\/password(?:\?|$)/);
   }
   await page.screenshot({
     path: "test-results/screenshots/password-change-390.png",
@@ -357,14 +417,21 @@ test("administrator resets a password and target must change it before using adm
   await page.getByLabel("새 비밀번호", { exact: true }).fill(changed);
   await page.getByLabel("새 비밀번호 확인", { exact: true }).fill(changed);
   await page.getByRole("button", { name: "비밀번호 변경하기" }).click();
-  await expect(page).toHaveURL(/\/admin\/login\?password_changed=1$/);
+  await expect(page).toHaveURL(/\/admin\/login\?password_changed=1&next=/);
+  expect(new URL(page.url()).searchParams.get("next")).toBe(
+    "/admin/password-reset",
+  );
   await expect(
     page.getByText("비밀번호를 변경했습니다. 새 비밀번호로 로그인해주세요."),
   ).toBeVisible();
   await page.getByLabel("아이디", { exact: true }).fill(username);
   await page.getByLabel("비밀번호", { exact: true }).fill(changed);
   await page.getByRole("button", { name: "로그인", exact: true }).click();
-  await openAdminMenu(page, "관리자 관리");
+  await expect(page).toHaveURL(/\/admin\/password-reset$/);
+  await page
+    .getByRole("navigation", { name: "관리자 메뉴", exact: true })
+    .getByRole("link", { name: "관리자 관리", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "관리자 등록", exact: true }),
   ).toBeVisible();

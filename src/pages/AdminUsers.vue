@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { api, session } from "../services/api.js";
+import { notify } from "../services/notifications.js";
 import AdminNav from "../components/AdminNav.vue";
 import AdminRegister from "../components/AdminRegister.vue";
 import Notice from "../components/Notice.vue";
@@ -18,8 +19,7 @@ const items = ref([]),
 const creating = ref(false),
   resetting = ref(null),
   busy = ref(false),
-  resetError = ref(""),
-  toast = ref("");
+  resetError = ref("");
 const pages = computed(() => Math.max(1, Math.ceil(total.value / 20)));
 async function load() {
   loading.value = true;
@@ -36,7 +36,7 @@ async function load() {
 }
 function registered() {
   creating.value = false;
-  toast.value = "관리자를 등록했습니다.";
+  notify("관리자를 등록했습니다.");
   page.value = 1;
   load();
 }
@@ -55,8 +55,9 @@ async function reset() {
       router.replace("/admin/login?reset=1");
       return;
     }
-    toast.value =
-      "비밀번호를 초기화했습니다. 대상 관리자는 다시 로그인한 뒤 비밀번호를 변경해야 합니다.";
+    notify(
+      "비밀번호를 초기화했습니다. 대상 관리자는 다시 로그인한 뒤 비밀번호를 변경해야 합니다.",
+    );
     await load();
   } catch (err) {
     resetError.value = err.message;
@@ -76,22 +77,35 @@ onMounted(load);
     <div class="page-heading">
       <div>
         <span class="eyebrow">YOUR ADMIN TEAM</span>
-        <h1>{{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리" }}<span class="green-period">.</span></h1>
-        <p>{{ resetMode ? "초기화할 관리자 계정을 선택해주세요." : "관리자 목록을 확인하고 새 관리자를 등록하세요." }}</p>
+        <h1>
+          {{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리"
+          }}<span class="green-period">.</span>
+        </h1>
+        <p>
+          {{
+            resetMode
+              ? "초기화할 관리자 계정을 선택해주세요."
+              : "관리자 목록을 확인하고 새 관리자를 등록하세요."
+          }}
+        </p>
       </div>
-      <button v-if="!resetMode" class="button primary" :disabled="busy" @click="creating = true">
+      <button
+        v-if="!resetMode"
+        class="button primary"
+        :disabled="busy"
+        @click="creating = true"
+      >
         <Icon name="plus" :size="18" />관리자 등록
       </button>
     </div>
     <AdminNav />
-    <div v-if="toast" class="toast" role="status">
-      <Icon name="check" :size="18" />{{ toast
-      }}<button class="icon-button" aria-label="알림 닫기" @click="toast = ''">
-        <Icon name="close" :size="16" />
-      </button>
-    </div>
     <p class="form-hint">
-      총 {{ total }}명의 관리자 · {{ resetMode ? "초기화 후 대상 계정의 기존 로그인이 모두 해제됩니다." : "모든 관리자는 동일한 관리 권한을 갖습니다." }}
+      총 {{ total }}명의 관리자 ·
+      {{
+        resetMode
+          ? "초기화 후 대상 계정의 기존 로그인이 모두 해제됩니다."
+          : "모든 관리자는 동일한 관리 권한을 갖습니다."
+      }}
     </p>
     <div class="results-panel" :aria-busy="loading">
       <Notice

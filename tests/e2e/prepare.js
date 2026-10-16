@@ -39,7 +39,7 @@ try {
   // This path is only used by Vite mode=e2e; ordinary local DB is never touched.
   writeFileSync(
     file,
-    `DELETE FROM songs; DELETE FROM admin_sessions; DELETE FROM admin_users; DELETE FROM login_limits;
+    `DELETE FROM admin_schedule_weeks; DELETE FROM songs; DELETE FROM admin_sessions; DELETE FROM admin_users; DELETE FROM login_limits;
     INSERT INTO admin_users(username, display_name, password_hash, password_salt, password_iterations)
     VALUES (${quote(username)}, 'QA 전용', ${quote(hash)}, ${quote(salt)}, ${PASSWORD_ITERATIONS});`,
   );
