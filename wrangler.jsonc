@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "zio-home",
+  "workers_dev": true,
+  "routes": [{ "pattern": "zio-home.com", "custom_domain": true }],
   "main": "server/index.js",
   "compatibility_date": "2026-07-30",
   "assets": {

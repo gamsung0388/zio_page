@@ -14,6 +14,11 @@ const router = createRouter({
       meta: { title: "노래책자" },
     },
     {
+      path: "/songs/guide",
+      component: () => import("../pages/SongGuide.vue"),
+      meta: { title: "노래책자 사용 가이드" },
+    },
+    {
       path: "/songs/:id",
       component: () => import("../pages/SongDetail.vue"),
       meta: { title: "노래 상세" },
@@ -22,6 +27,11 @@ const router = createRouter({
       path: "/about",
       component: () => import("../views/AboutView.vue"),
       meta: { title: "지오 소개" },
+    },
+    {
+      path: "/admin/songs/guide",
+      component: () => import("../pages/AdminSongGuide.vue"),
+      meta: { title: "노래 등록·관리 가이드", admin: true },
     },
     {
       path: "/admin/songs/new",

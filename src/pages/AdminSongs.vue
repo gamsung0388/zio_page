@@ -1,4 +1,6 @@
 <script setup>
+import GuideLink from "../components/guide/GuideLink.vue";
+import { songGuideLink } from "../services/song-guide.js";
 import { updateAdminSong, removeAdminSong } from "../services/song-admin.js";
 import { useRoute, useRouter } from "vue-router";
 import { notification, notify } from "../services/notifications.js";
@@ -114,7 +116,7 @@ async function backup() {
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>노래 관리
     </div>
-    <div class="page-heading">
+    <div class="page-heading song-heading">
       <div>
         <span class="eyebrow">MANAGE YOUR SONGBOOK</span>
         <h1>노래책자 관리<span class="green-period">.</span></h1>
@@ -123,9 +125,15 @@ async function backup() {
           어떤 노래를 담아볼까요?
         </p>
       </div>
-      <button class="button primary" :disabled="busy" @click="edit()">
-        <Icon name="plus" :size="19" />새 노래 등록
-      </button>
+      <div class="song-heading-actions">
+        <GuideLink
+          :to="songGuideLink(route.fullPath, true)"
+          label="등록·관리 가이드"
+        />
+        <button class="button primary" :disabled="busy" @click="edit()">
+          <Icon name="plus" :size="19" />새 노래 등록
+        </button>
+      </div>
     </div>
     <div class="admin-tools">
       <span><Icon name="music" :size="16" />노래책자 · CSV 관리</span>

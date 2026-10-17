@@ -1,4 +1,7 @@
 <script setup>
+import Icon from "../components/Icon.vue";
+import GuideLink from "../components/guide/GuideLink.vue";
+import { songGuideLink } from "../services/song-guide.js";
 import { useRoute } from "vue-router";
 import { computed } from "vue";
 import { useSongs } from "../services/useSongs.js";
@@ -8,7 +11,6 @@ import SongCard from "../components/SongCard.vue";
 import { toSongView } from "../services/song-adapter.js";
 import Pagination from "../components/Pagination.vue";
 import Notice from "../components/Notice.vue";
-import Icon from "../components/Icon.vue";
 const route = useRoute();
 const {
   items,
@@ -36,15 +38,13 @@ const hasFilters = computed(() =>
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>노래책자
     </div>
-    <div class="page-heading">
+    <div class="page-heading song-heading">
       <div>
         <div class="eyebrow">ZIO'S SONGBOOK</div>
         <h1>지오의 노래책자<span class="green-period">.</span></h1>
         <p>지오의 노래들을 한곳에. 듣고 싶은 노래를 천천히 골라보세요.</p>
       </div>
-      <span class="heading-art" aria-hidden="true"
-        ><Icon name="book" :size="42"
-      /></span>
+      <GuideLink :to="songGuideLink(route.fullPath)" />
     </div>
     <SongFilters
       :filters="filters"

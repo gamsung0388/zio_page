@@ -1,4 +1,6 @@
 <script setup>
+import GuideLink from "../components/guide/GuideLink.vue";
+import { songGuideLink } from "../services/song-guide.js";
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { getAdminSong, saveAdminSong } from "../services/song-admin.js";
@@ -139,6 +141,13 @@ onBeforeUnmount(() => {
     :save-action="save"
     @cancel="router.push(destination())"
   >
+    <template #guide>
+      <GuideLink
+        :to="songGuideLink(route.fullPath, true)"
+        label="등록 가이드"
+        new-tab
+      />
+    </template>
     <template #save-error>
       <div
         v-if="conflict"

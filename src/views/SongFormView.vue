@@ -216,7 +216,7 @@ async function submit() {
       >노래책자 / {{ isEdit ? "수정" : "등록" }}</span
     >
   </div>
-  <section class="page-intro form-intro">
+  <section class="page-intro form-intro" :class="{ 'song-heading': connected }">
     <div>
       <span class="eyebrow">SONGBOOK EDITOR</span>
       <h1>
@@ -231,6 +231,7 @@ async function submit() {
         }}
       </p>
     </div>
+    <slot name="guide" />
   </section>
   <DraftRecovery
     :pending="pending"

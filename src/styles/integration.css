@@ -403,3 +403,25 @@
 .integrated-app .form-aside.connected {
   grid-template-columns: 1fr;
 }
+
+/* Shared song list/editor guide entry points. */
+.integrated-app .song-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.integrated-app .song-heading-actions .button {
+  min-height: 44px;
+}
+@media (max-width: 700px) {
+  .integrated-app .song-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .integrated-app .song-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

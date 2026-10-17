@@ -40,6 +40,7 @@ test("login returns only to canonical known admin routes and preserves their que
   for (const path of [
     "/admin",
     "/admin/menus",
+    "/admin/songs/guide?returnTo=%2Fadmin%2Fsongs%3Fpage%3D2",
     "/admin/songs/12/edit?returnTo=%2Fadmin%2Fsongs",
     "/admin/schedule/image?week=2027-01-04",
     "/admin/schedule/guide?month=2027-01&view=list",

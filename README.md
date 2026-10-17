@@ -4,7 +4,7 @@
 
 공개 방송 일정표, 다른 스트리머, 공지·갤러리, 신청 접수·결제, 방송 API는 구현하지 않았습니다. 실제 곡과 관리자 계정은 기본 생성하지 않습니다.
 
-배포된 서비스: [홈페이지](https://zio-home.ryan9320.workers.dev) · [관리자 로그인](https://zio-home.ryan9320.workers.dev/admin/login)
+배포된 서비스: [홈페이지](https://zio-home.com) · [관리자 로그인](https://zio-home.com/admin/login) · [기본 배포 주소](https://zio-home.ryan9320.workers.dev)
 
 ## Windows에서 실행
 
@@ -219,3 +219,8 @@ UI·UX 개선 운영 배포 완료: 소스 `790d5fe`, Worker `05c7a7a3-1684-44b0
 일정 막대나 목록의 수정을 누르면 수정창 하단에 **이 일정 삭제** 버튼이 보입니다. 접힌 백업 메뉴를 펼치지 않아도 사용할 수 있고, 삭제 확인과 기존 버전 검사를 유지합니다. 새 일정 등록창에는 표시하지 않습니다. [사용법·변경 파일·검증 기록](docs/24_EVENT_DELETE_BUTTON.md).
 
 2026-10-17 일정 삭제 버튼 운영 반영 완료: 소스 `f7a7b4c`, Worker `35a342c1-9181-4cb3-9b7d-f1e9e8725c36`. 관련 브라우저 검사 4개와 다섯 화면 크기, 운영 파일 67개 일치를 확인했습니다. [사용법·검증·배포 기록](docs/24_EVENT_DELETE_BUTTON.md).
+
+
+## 노래책자 사용·등록 가이드
+
+노래책자 상단 **사용 가이드**에서 [공개 이용 안내](https://zio-home.com/songs/guide)를 확인합니다. 관리자 로그인 후 노래 관리 상단 **등록·관리 가이드**, 등록·수정 상단 **등록 가이드**에서 [입력·공개 설정·CSV·백업 안내](https://zio-home.com/admin/songs/guide)를 확인합니다. 편집 중 가이드는 새 탭으로 열려 입력을 유지합니다. 기존 일정 가이드는 **일정 관리 → 사용 가이드**에 있습니다. [기능·권한·검증 기록](docs/25_SONG_GUIDES.md).
