@@ -128,3 +128,18 @@ tests/e2e/song-conflicts.spec.js
 tests/e2e/schedule-pagination.spec.js
 tests/e2e/support/admin.js
 ```
+
+## 운영 배포 완료
+
+2026-10-17 14:40:44 (Asia/Seoul) 확인. 실행 소스 `036ff81`, Worker `1b0b139a-ebef-485a-bd96-67567222d129`를 운영에 배포했습니다. 소스는 GitHub `codex/phase1`에 반영했고 문서 확인 결과는 뒤이은 커밋으로 기록합니다.
+
+- 로컬·원격 DB를 각각 내보내 백업한 뒤 migration 0006을 적용했습니다. 두 환경 모두 노래·관리자·개별 일정·주간 메모의 행 수가 전후 동일하고 revision 컬럼이 준비됐습니다. 원격 백업은 `.local/backups/priority-remote-1792215500355/database.sql`, 로컬 백업은 `.local/backups/priority-local-1792215152415/database.sql`입니다. 비밀값이 있는 백업과 로그는 Git에서 제외합니다.
+- 원격 첫 조회에서 Cloudflare 7403 접근 오류가 한 차례 발생했습니다. 로그인 계정·권한과 D1 목록/읽기를 재확인한 뒤 요청이 정상으로 돌아왔고, 그 이후에 백업·마이그레이션·배포를 진행했습니다. 계정·토큰 설정은 변경하지 않았습니다.
+- 운영 D1 health 정상, 공개 자산 **65개** SHA256이 최종 빌드와 일치합니다. 노래·일정 조회 및 주간 메모 삭제를 포함한 익명 접근 8개를 차단하고 보호 화면의 로그인 복귀를 확인했습니다.
+- 운영 파일로 PC 1440px·모바일 390px·360px의 날짜 등록·가이드·노래 충돌 비교·일정 2페이지를 확인했습니다. 목록은 한 요청에 50개를 요구하고 55개 자료의 2페이지에 5개를 표시했습니다. 오류에 초점을 옮기고 비교 후 서버의 비공개 메모를 유지하는 동작도 확인했습니다.
+- 기존 주간 이미지 출력 PNG 1672×941, 주간 삭제 미리보기·취소를 확인했습니다. 페이지 오류·CSP 위반·가로 넘침은 없었습니다.
+- 보호 UI에는 격리 브라우저의 GET 테스트 응답을 사용했습니다. 노래 충돌 재현 요청 3개는 브라우저에서 409 테스트 응답으로 차단했으며 실제 운영 계정·노래·일정·메모를 수정하지 않았습니다. 실제 저장·동시 수정·삭제 권한은 앞선 로컬 API/E2E 검증 범위입니다.
+
+운영 증거: `.local/priority-review/production/verification.json`, `production/priority-ui.json`, `migration-local.json`, `migration-remote.json`. 소스와 별개로 남아 있던 사용자 SQL 수정과 참고 ZIP도 원문 그대로 유지했습니다.
+
+[운영 홈페이지](https://zio-home.ryan9320.workers.dev) · [노래 관리](https://zio-home.ryan9320.workers.dev/admin/songs) · [일정 목록](https://zio-home.ryan9320.workers.dev/admin/schedule?view=list). 이미 열어 둔 화면은 새로고침한 뒤 사용합니다.
