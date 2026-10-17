@@ -39,6 +39,7 @@ import {
   loadAllScheduleWeeks,
 } from "../schedule/backup.js";
 import { api } from "../services/api.js";
+import ScheduleWeekDelete from "../components/schedule/ScheduleWeekDelete.vue";
 import ScheduleNav from "../components/schedule/ScheduleNav.vue";
 import ZioEditorToolbar from "../components/schedule/ZioEditorToolbar.vue";
 import ZioScheduleCanvas from "../components/schedule/ZioScheduleCanvas.vue";
@@ -50,6 +51,8 @@ const route = useRoute(),
   canvas = ref(null),
   exporting = ref(false),
   transferring = ref(false),
+  deleting = ref(false),
+  deleteTarget = ref(null),
   today = useKstToday();
 const initialWeek = mondayOf(today.value);
 const week = computed(() =>
@@ -68,10 +71,11 @@ const {
   dirty,
   revision,
   lastSaved,
+  savedWeek,
 } = editor;
 const { pending, storageError } = editor.drafts;
 const locked = computed(
-  () => saving.value || exporting.value || transferring.value,
+  () => saving.value || exporting.value || transferring.value || deleting.value,
 );
 const activeDay = ref("mon"),
   dayIndex = computed(() =>
@@ -86,10 +90,14 @@ const saveState = computed(() =>
     ? "저장 중…"
     : dirty.value
       ? "저장하지 않은 변경이 있어요"
-      : revision.value === 0
+      : !savedWeek.value
         ? "아직 저장하지 않은 주예요"
         : "저장 완료",
 );
+function deletedWeek(data) {
+  editor.acceptDeleted(data);
+  deleteTarget.value = null;
+}
 const savedLabel = computed(() =>
   lastSaved.value
     ? new Date(lastSaved.value).toLocaleString("ko-KR", {
@@ -622,6 +630,20 @@ function applyImport() {
               포함해요. 가져온 내용은 확인 후 직접 저장합니다.
             </p>
           </details>
+          <section class="card week-delete-tools">
+            <h2>저장된 주간 메모 삭제</h2>
+            <p>이 주의 저장 내용을 지웁니다. 개별 일정은 삭제하지 않습니다.</p>
+            <button
+              class="btn btn-danger-ghost"
+              :disabled="locked || !savedWeek"
+              @click="deleteTarget = savedWeek"
+            >
+              이 주 저장 메모 삭제
+            </button>
+            <p v-if="!savedWeek" class="form-hint">
+              이 주에 삭제할 저장 메모가 없습니다.
+            </p>
+          </section>
         </div>
         <section class="schedule-preview-column">
           <h2>이미지 미리보기</h2>
@@ -756,5 +778,13 @@ function applyImport() {
         </div></template
       ></Modal
     >
+    <ScheduleWeekDelete
+      v-if="deleteTarget"
+      :week="deleteTarget"
+      :discard-draft="dirty"
+      @close="deleteTarget = null"
+      @busy="deleting = $event"
+      @deleted="deletedWeek"
+    />
   </div>
 </template>

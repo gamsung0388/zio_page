@@ -43,3 +43,19 @@ export function validateSchedule(input) {
     throw new ApiError(422, "SCHEDULE_VALIDATION", error.message);
   }
 }
+
+export function validateScheduleDelete(input) {
+  if (
+    !isRecord(input) ||
+    Object.keys(input).length !== 1 ||
+    !Object.hasOwn(input, "expected_revision") ||
+    !Number.isSafeInteger(input.expected_revision) ||
+    input.expected_revision < 1
+  )
+    throw new ApiError(
+      422,
+      "SCHEDULE_VALIDATION",
+      "삭제할 저장 버전을 확인해주세요.",
+    );
+  return input.expected_revision;
+}

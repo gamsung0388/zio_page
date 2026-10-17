@@ -3,12 +3,14 @@ import {
   validateWeek,
   validateRange,
   validateSchedule,
+  validateScheduleDelete,
 } from "../services/schedule-validation.js";
 import {
   getWeek,
   listWeeks,
   saveWeek,
   backupWeeks,
+  deleteWeek,
 } from "../repositories/schedules.js";
 // Called only after the existing admin session, forced-password and CSRF checks.
 export async function scheduleRoutes(request, env, path, auth) {
@@ -53,6 +55,17 @@ export async function scheduleRoutes(request, env, path, auth) {
         "다른 관리자가 이 주를 변경했습니다. 입력 내용을 확인한 뒤 서버에서 다시 불러와주세요.",
       );
     return json(saved, expected_revision === 0 ? 201 : 200);
+  }
+  if (request.method === "DELETE") {
+    const expected = validateScheduleDelete(await readJson(request));
+    const deleted = await deleteWeek(env.DB, week, expected, auth.user.id);
+    if (!deleted)
+      throw new ApiError(
+        409,
+        "SCHEDULE_CONFLICT",
+        "이 주의 메모가 변경되었거나 이미 삭제되었습니다. 다시 불러온 뒤 확인해주세요.",
+      );
+    return json(deleted);
   }
   return null;
 }

@@ -51,6 +51,7 @@
 | GET | `/api/admin/schedules?from=YYYY-MM-DD&to=YYYY-MM-DD` | 월간 달력 범위의 주간 문서 조회, 최대 63일 |
 | GET | `/api/admin/schedules/:week_start` | 월요일로 시작하는 주간 문서. 미저장 주는 revision 0과 기본값 |
 | PUT | `/api/admin/schedules/:week_start` | 주간 문서 저장. expected_revision 필수, 충돌 409 |
+| DELETE | `/api/admin/schedules/:week_start` | 선택 주의 내용·이미지 설정 삭제. 양의 expected_revision 필수 |
 
 인증·강제 비밀번호 변경 검사·Origin/CSRF 검증은 기존 관리자 미들웨어를 공유합니다. 모든 일정 응답은 no-store이며 공개 일정 API는 없습니다. 요청·검증·저장 필드와 마이그레이션은 [12 관리자 일정 관리](12_ADMIN_SCHEDULE.md)를 따릅니다.
 
@@ -74,3 +75,7 @@
 입력은 title/description/kind/time_mode/start_date/end_date/start_time/end_time입니다. 시간은 HH:mm이며 시간 지정 외에는 빈 문자열이어야 합니다. 서버가 한국 날짜/시각을 UTC starts_at/ends_at으로 변환합니다. 종료가 정확히 자정이면 다음 날짜 조회에서 제외하고, 종일/시간 미정의 종료 날짜는 포함합니다. 정규 시각 외 자유 안내는 기존 주간 메모 API로 유지합니다.
 
 기존 관리자 인증·강제 비밀번호 변경·Origin·CSRF를 공유하며 모두 no-store입니다. 제목 1~120자, 설명 0~2000자, 등록 날짜 2000~2099년, 최대 366일을 검증합니다. 잘못된 JSON 객체는 기존 공통 400, 필드 검증은 422, 수정/삭제 버전 충돌은 409입니다. updated_by/인증 비밀값은 응답하지 않습니다. 자세한 계약은 [16 개별 일정](16_INDIVIDUAL_SCHEDULE_EVENTS.md)에 기록합니다.
+
+### 저장된 주간 메모 삭제
+
+주간 GET/PUT/DELETE 응답은 `is_saved`로 저장 여부를 나타냅니다. 새 미저장 주는 revision 0이며, 삭제된 주는 기본값과 `is_saved:false`를 반환하되 이전 버전을 증가시켜 보존합니다. DELETE JSON은 `{ "expected_revision": 양의 정수 }`만 허용하며 변경·이미 삭제·미저장 주는 409입니다. 삭제된 내용과 스타일은 제거하고 목록/백업에서 제외합니다. 다른 주와 개별 일정은 유지합니다. [삭제·복구·버전 계약](18_WEEKLY_MEMO_DELETE.md).

@@ -1732,3 +1732,220 @@ test("event backup pages by id without gaps and never includes actor or authenti
       400,
     );
 });
+
+test("weekly memo deletion requires authentication, CSRF, same origin and a changed password", async () => {
+  const path = "/api/admin/schedules/2026-10-12",
+    body = { expected_revision: 1 };
+  assert.equal((await request(path, "DELETE", body)).status, 401);
+  const auth = await login();
+  assert.equal(
+    (await request(path, "PUT", schedulePayload(), auth)).status,
+    201,
+  );
+  assert.equal(
+    (await request(path, "DELETE", body, { ...auth, csrfToken: "" })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(path, "DELETE", body, auth, {
+        Origin: "https://elsewhere.invalid",
+      })
+    ).status,
+    403,
+  );
+  await db.prepare("UPDATE admin_users SET must_change_password=1").run();
+  assert.equal((await request(path, "DELETE", body, auth)).status, 403);
+  const row = await db
+    .prepare(
+      "SELECT revision,payload FROM admin_schedule_weeks WHERE week_start=?",
+    )
+    .bind("2026-10-12")
+    .first();
+  assert.equal(row.revision, 1);
+  assert.equal(JSON.parse(row.payload)._deleted, undefined);
+});
+
+test("weekly deletion erases all seven days and style, hides backup entries and preserves other weeks and individual events", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  const payload = schedulePayload({
+    selectedTemplate: "images/schedule/zio-schedule-template2.png",
+  });
+  for (const day of Object.values(payload.scheduleForm)) {
+    day.content = "ERASE_THIS_WEEK";
+    day.time = "20:00";
+  }
+  await request(path, "PUT", payload, auth);
+  await request(
+    "/api/admin/schedules/2026-10-19",
+    "PUT",
+    schedulePayload(),
+    auth,
+  );
+  const event = await (
+    await request("/api/admin/schedule-events", "POST", eventPayload(), auth)
+  ).json();
+  const response = await request(
+    path,
+    "DELETE",
+    { expected_revision: 1 },
+    auth,
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  const empty = await response.json();
+  assert.equal(empty.is_saved, false);
+  assert.equal(empty.revision, 2);
+  assert.equal(empty.updated_at, null);
+  assert.equal(empty.selectedTemplate, schedulePayload().selectedTemplate);
+  for (const entry of Object.values(empty.scheduleForm))
+    assert.deepEqual(entry, { content: "", time: "" });
+  assert.deepEqual(
+    await (await request(path, "GET", undefined, auth)).json(),
+    empty,
+  );
+  const list = await (
+    await request(
+      "/api/admin/schedules?from=2026-10-01&to=2026-10-31",
+      "GET",
+      undefined,
+      auth,
+    )
+  ).json();
+  assert.deepEqual(
+    list.items.map((item) => item.week_start),
+    ["2026-10-19"],
+  );
+  const backup = await (
+    await request("/api/admin/schedules/backup", "GET", undefined, auth)
+  ).json();
+  assert.deepEqual(
+    backup.items.map((item) => item.week_start),
+    ["2026-10-19"],
+  );
+  const stored = await db
+    .prepare("SELECT payload FROM admin_schedule_weeks WHERE week_start=?")
+    .bind("2026-10-12")
+    .first();
+  assert.equal(stored.payload.includes("ERASE_THIS_WEEK"), false);
+  assert.deepEqual(JSON.parse(stored.payload), { _deleted: true });
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedule-events/" + event.id,
+        "GET",
+        undefined,
+        auth,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/admin/schedules/2026-10-19", "GET", undefined, auth))
+      .status,
+    200,
+  );
+  assert.equal("updated_by" in empty, false);
+});
+
+test("weekly deletion is atomic and old editors cannot modify or delete a recreated memo", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  await request(path, "PUT", schedulePayload(), auth);
+  const results = await Promise.all([
+    request(path, "DELETE", { expected_revision: 1 }, auth),
+    request(path, "DELETE", { expected_revision: 1 }, auth),
+  ]);
+  assert.deepEqual(results.map((result) => result.status).sort(), [200, 409]);
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        schedulePayload({ expected_revision: 1 }),
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await request(path, "PUT", schedulePayload(), auth)).status,
+    409,
+  );
+  const tombstone = await (await request(path, "GET", undefined, auth)).json();
+  const restore = schedulePayload({ expected_revision: tombstone.revision });
+  restore.scheduleForm.mon.content = "NEWER_WEEK";
+  const recreated = await request(path, "PUT", restore, auth);
+  assert.equal(recreated.status, 200);
+  const latest = await recreated.json();
+  assert.equal(latest.revision, 3);
+  assert.equal(latest.is_saved, true);
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1 }, auth)).status,
+    409,
+  );
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 2 }, auth)).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        schedulePayload({ expected_revision: 1 }),
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await (await request(path, "GET", undefined, auth)).json()).scheduleForm
+      .mon.content,
+    "NEWER_WEEK",
+  );
+});
+
+test("weekly deletion rejects unknown fields, invalid revisions and invalid weeks without erasing content", async () => {
+  const auth = await login(),
+    path = "/api/admin/schedules/2026-10-12";
+  await request(path, "PUT", schedulePayload(), auth);
+  for (const body of [
+    {},
+    { expected_revision: 0 },
+    { expected_revision: -1 },
+    { expected_revision: 1.5 },
+    { expected_revision: "1" },
+    { expected_revision: Number.MAX_SAFE_INTEGER + 1 },
+    { expected_revision: 1, delete_all: true },
+  ])
+    assert.equal((await request(path, "DELETE", body, auth)).status, 422);
+  for (const date of ["2026-10-13", "2026-02-30"])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/schedules/" + date,
+          "DELETE",
+          { expected_revision: 1 },
+          auth,
+        )
+      ).status,
+      400,
+    );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedules/2026-10-19",
+        "DELETE",
+        { expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await (await request(path, "GET", undefined, auth)).json()).is_saved,
+    true,
+  );
+});

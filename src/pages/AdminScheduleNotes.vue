@@ -23,6 +23,7 @@ import { schedulePayload } from "../../shared/schedule/validation.js";
 import { DAY_OPTIONS } from "../../shared/schedule/scheduleConfig.js";
 import Notice from "../components/Notice.vue";
 import Modal from "../components/Modal.vue";
+import ScheduleWeekDelete from "../components/schedule/ScheduleWeekDelete.vue";
 import ScheduleNav from "../components/schedule/ScheduleNav.vue";
 const route = useRoute(),
   router = useRouter(),
@@ -42,6 +43,8 @@ const loading = ref(true),
   week = ref(null),
   dayLoading = ref(false),
   busy = ref(false),
+  deleting = ref(false),
+  deleteTarget = ref(null),
   dayError = ref(""),
   draft = ref({ content: "", time: "" }),
   original = ref("");
@@ -82,7 +85,12 @@ const drafts = useEditorDraft({
   },
 });
 const { pending, storageError } = drafts;
-useEditorGuard(() => dirty.value || busy.value);
+useEditorGuard(() => dirty.value || busy.value || deleting.value);
+async function deletedWeek() {
+  deleteTarget.value = null;
+  notify("저장된 주간 메모를 삭제했습니다. 개별 일정은 유지됩니다.");
+  await load();
+}
 function entry(date) {
   const source = weeks.value.find((item) => item.week_start === mondayOf(date));
   const index = (new Date(date + "T00:00:00Z").getUTCDay() + 6) % 7;
@@ -201,6 +209,7 @@ function leave(to, from) {
   if (to.path === from.path && to.query.month === from.query.month) return true;
   if (to.path === "/admin/login" || to.path === "/admin/password") return true;
   if (
+    deleting.value ||
     (busy.value && selected.value) ||
     (dirty.value && !window.confirm("저장하지 않은 일정을 두고 이동할까요?"))
   )
@@ -211,7 +220,7 @@ function leave(to, from) {
 onBeforeRouteLeave(leave);
 onBeforeRouteUpdate(leave);
 function beforeUnload(event) {
-  if (dirty.value || busy.value) {
+  if (dirty.value || busy.value || deleting.value) {
     event.preventDefault();
     event.returnValue = "";
   }
@@ -315,6 +324,43 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </section>
+    <section
+      v-if="!loading && !error"
+      class="card saved-week-panel"
+      aria-label="저장된 주간 메모"
+    >
+      <h2>
+        저장된 주간 메모 <small>{{ weeks.length }}주</small>
+      </h2>
+      <p>선택한 주의 7일치 메모와 이미지 설정을 삭제할 수 있습니다.</p>
+      <p v-if="!weeks.length" class="form-hint">
+        이 달에 저장된 주간 메모가 없습니다.
+      </p>
+      <ul v-else class="saved-week-list">
+        <li v-for="item in weeks" :key="item.week_start">
+          <strong
+            >{{ item.week_start }} ~ {{ addDays(item.week_start, 6) }}</strong
+          >
+          <div>
+            <RouterLink
+              class="btn btn-outline"
+              :to="{
+                path: '/admin/schedule/image',
+                query: { week: item.week_start },
+              }"
+              >이미지 편집</RouterLink
+            ><button
+              class="btn btn-danger-ghost"
+              :aria-label="item.week_start + ' 주간 메모 삭제'"
+              :disabled="busy || deleting"
+              @click="deleteTarget = item"
+            >
+              삭제
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
     <p class="schedule-help">
       한국 날짜(Asia/Seoul) 기준 · 날짜별 내용과 시간 안내를 저장합니다.
       관리자에게만 표시됩니다.
@@ -411,5 +457,12 @@ onBeforeUnmount(() => {
         서버에서 다시 불러오기
       </button></Modal
     >
+    <ScheduleWeekDelete
+      v-if="deleteTarget"
+      :week="deleteTarget"
+      @close="deleteTarget = null"
+      @busy="deleting = $event"
+      @deleted="deletedWeek"
+    />
   </div>
 </template>

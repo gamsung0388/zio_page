@@ -7,6 +7,7 @@ export function emptyWeek(week_start) {
   return {
     week_start,
     revision: 0,
+    is_saved: false,
     updated_at: null,
     selectedTemplate: DEFAULT_TEMPLATE,
     scheduleForm: createScheduleForm(),
@@ -14,14 +15,17 @@ export function emptyWeek(week_start) {
   };
 }
 function serialize(row) {
-  return row
-    ? {
-        ...JSON.parse(row.payload),
-        week_start: row.week_start,
-        revision: row.revision,
-        updated_at: row.updated_at,
-      }
-    : null;
+  if (!row) return null;
+  const payload = JSON.parse(row.payload);
+  if (payload._deleted === true)
+    return { ...emptyWeek(row.week_start), revision: row.revision };
+  return {
+    ...payload,
+    week_start: row.week_start,
+    revision: row.revision,
+    updated_at: row.updated_at,
+    is_saved: true,
+  };
 }
 export async function getWeek(db, date) {
   return (
@@ -39,7 +43,7 @@ export async function listWeeks(db, from, to) {
   return (
     await db
       .prepare(
-        "SELECT week_start,payload,revision,updated_at FROM admin_schedule_weeks WHERE week_start BETWEEN ? AND ? ORDER BY week_start LIMIT 10",
+        "SELECT week_start,payload,revision,updated_at FROM admin_schedule_weeks WHERE week_start BETWEEN ? AND ? AND json_extract(payload, '$._deleted') IS NOT 1 ORDER BY week_start LIMIT 10",
       )
       .bind(from, to)
       .all()
@@ -49,7 +53,7 @@ export async function backupWeeks(db, after) {
   const rows = (
     await db
       .prepare(
-        "SELECT week_start,payload,revision,updated_at FROM admin_schedule_weeks WHERE week_start > ? ORDER BY week_start LIMIT 51",
+        "SELECT week_start,payload,revision,updated_at FROM admin_schedule_weeks WHERE week_start > ? AND json_extract(payload, '$._deleted') IS NOT 1 ORDER BY week_start LIMIT 51",
       )
       .bind(after || "")
       .all()
@@ -75,4 +79,15 @@ export async function saveWeek(db, date, payload, expected, userId) {
           .bind(JSON.stringify(payload), userId, date, expected)
           .first();
   return serialize(row);
+}
+
+// Erase all content while retaining the version, so old editors cannot recreate or delete a newer save.
+export async function deleteWeek(db, date, expected, userId) {
+  const row = await db
+    .prepare(
+      "UPDATE admin_schedule_weeks SET payload=?,revision=revision+1,updated_by=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE week_start=? AND revision=? AND json_extract(payload, '$._deleted') IS NOT 1 RETURNING week_start,revision",
+    )
+    .bind(JSON.stringify({ _deleted: true }), userId, date, expected)
+    .first();
+  return row ? { ...emptyWeek(row.week_start), revision: row.revision } : null;
 }

@@ -1536,3 +1536,131 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.saved-week-panel,
+.week-delete-tools {
+  padding: 20px;
+  margin-top: 20px;
+}
+.saved-week-panel h2,
+.week-delete-tools h2 {
+  font-size: 18px;
+  color: #113726;
+  margin: 0 0 10px;
+}
+.saved-week-panel h2 small {
+  font-size: 13px;
+  color: #637659;
+  margin-left: 6px;
+}
+.saved-week-panel > p,
+.week-delete-tools p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #53674b;
+}
+.saved-week-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.saved-week-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e1e8dc;
+  padding: 12px 0;
+}
+.saved-week-list strong {
+  font-size: 14px;
+  color: #315639;
+}
+.saved-week-list li > div {
+  display: flex;
+  gap: 8px;
+}
+.saved-week-list .btn,
+.week-delete-tools .btn {
+  min-height: 44px;
+  font-size: 13px;
+}
+.week-delete-period {
+  color: #113726;
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.week-delete-warning {
+  font-size: 14px;
+  color: #735540;
+  line-height: 1.7;
+  background: #fff6ed;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.week-delete-preview {
+  list-style: none;
+  max-height: 250px;
+  overflow: auto;
+  margin: 16px 0;
+  padding: 0;
+  border-top: 1px solid #dfe7dd;
+  overscroll-behavior: contain;
+}
+.week-delete-preview li {
+  padding: 10px 0;
+  border-bottom: 1px solid #dfe7dd;
+}
+.week-delete-preview strong {
+  font-size: 13px;
+  color: #315639;
+}
+.week-delete-preview span {
+  font-size: 12px;
+  color: #627757;
+  margin-left: 12px;
+}
+.week-delete-preview p {
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 7px 0;
+}
+.week-delete-dialog .text-button {
+  min-height: 44px;
+  font-size: 13px;
+}
+.week-delete-dialog .week-delete-confirm {
+  background: #a84438;
+  color: #fff;
+  border-color: #a84438;
+}
+.week-delete-dialog .week-delete-confirm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  .saved-week-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .saved-week-list li > div {
+    width: 100%;
+  }
+  .saved-week-list li .btn {
+    flex: 1;
+  }
+  .saved-week-panel,
+  .week-delete-tools {
+    padding: 16px;
+  }
+  .week-delete-dialog .modal-actions {
+    flex-wrap: wrap;
+  }
+  .week-delete-dialog .modal-actions .button {
+    flex: 1;
+    min-height: 44px;
+  }
+}

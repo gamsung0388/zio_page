@@ -22,6 +22,7 @@ export function useScheduleEditor(week) {
     notice = ref(""),
     revision = ref(0),
     lastSaved = ref(null),
+    savedWeek = ref(null),
     baseline = ref("");
   let controller;
   function snapshot() {
@@ -78,6 +79,8 @@ export function useScheduleEditor(week) {
       apply(data);
       revision.value = data.revision;
       lastSaved.value = data.updated_at;
+      savedWeek.value =
+        data.is_saved !== false && data.revision > 0 ? data : null;
       baseline.value = JSON.stringify(snapshot());
     } catch (err) {
       if (err.name !== "AbortError") error.value = err.message;
@@ -98,6 +101,7 @@ export function useScheduleEditor(week) {
       });
       revision.value = result.revision;
       lastSaved.value = result.updated_at;
+      savedWeek.value = result;
       baseline.value = JSON.stringify(data);
       drafts.clear();
       notice.value = "일정을 저장했습니다.";
@@ -108,6 +112,17 @@ export function useScheduleEditor(week) {
     } finally {
       saving.value = false;
     }
+  }
+  function acceptDeleted(data) {
+    apply(data);
+    revision.value = data.revision;
+    lastSaved.value = null;
+    savedWeek.value = null;
+    baseline.value = JSON.stringify(snapshot());
+    drafts.clear();
+    actionError.value = "";
+    notice.value = "저장된 주간 메모를 삭제했습니다. 개별 일정은 유지됩니다.";
+    notify(notice.value);
   }
   function confirmLeave() {
     if (
@@ -178,6 +193,8 @@ export function useScheduleEditor(week) {
     dirty,
     revision,
     lastSaved,
+    savedWeek,
+    acceptDeleted,
     drafts,
     snapshot,
     apply,
