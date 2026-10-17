@@ -147,7 +147,9 @@ test("more than 2000 events remain reachable and invalid or emptied pages recove
     .getByRole("button", { name: "페이지 일정 2051 일정 수정", exact: true })
     .click();
   const dialog = page.getByRole("dialog", { name: "일정 수정", exact: true });
-  await dialog.locator(".event-editor-tools summary").click();
+  await expect(
+    dialog.getByRole("button", { name: "이 일정 삭제", exact: true }),
+  ).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "이 일정 삭제", exact: true })

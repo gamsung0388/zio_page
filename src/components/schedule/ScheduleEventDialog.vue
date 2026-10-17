@@ -28,6 +28,7 @@ import {
 } from "../../schedule/event-presentation.js";
 import { backupEventsFile } from "../../schedule/events-service.js";
 import Modal from "../Modal.vue";
+import Icon from "../Icon.vue";
 import DraftRecovery from "../DraftRecovery.vue";
 import Notice from "../Notice.vue";
 const props = defineProps({
@@ -44,6 +45,7 @@ const isNew = computed(() => props.eventId === "new"),
   loadError = ref(""),
   error = ref(""),
   busy = ref(false),
+  deleting = ref(false),
   complete = ref(false),
   baseline = ref("");
 const controller = new AbortController();
@@ -192,6 +194,7 @@ async function remove() {
   )
     return;
   busy.value = true;
+  deleting.value = true;
   error.value = "";
   try {
     await api("/admin/schedule-events/" + props.eventId, {
@@ -206,6 +209,7 @@ async function remove() {
     error.value = err.message;
   } finally {
     busy.value = false;
+    deleting.value = false;
   }
 }
 function confirmLeave() {
@@ -406,7 +410,7 @@ defineExpose({ confirmLeave });
           </label>
         </fieldset>
         <details class="event-editor-tools">
-          <summary>백업{{ isNew ? "" : "·다시 불러오기·삭제" }}</summary>
+          <summary>백업{{ isNew ? "" : "·다시 불러오기" }}</summary>
           <div class="event-dialog-secondary">
             <button
               class="text-button"
@@ -424,15 +428,6 @@ defineExpose({ confirmLeave });
               @click="reload"
             >
               저장된 일정 다시 불러오기
-            </button>
-            <button
-              v-if="!isNew"
-              class="text-button event-delete-action"
-              type="button"
-              :disabled="busy"
-              @click="remove"
-            >
-              이 일정 삭제
             </button>
           </div>
         </details>
@@ -455,7 +450,18 @@ defineExpose({ confirmLeave });
         >
           {{ error }}
         </p>
-        <div class="modal-actions">
+        <div class="modal-actions" :class="{ 'has-delete': !isNew }">
+          <button
+            v-if="!isNew"
+            class="button event-delete-action"
+            type="button"
+            :disabled="busy"
+            @click="remove"
+          >
+            <Icon name="trash" :size="17" />{{
+              deleting ? "삭제 중…" : "이 일정 삭제"
+            }}
+          </button>
           <button
             class="button secondary"
             type="button"
@@ -473,7 +479,7 @@ defineExpose({ confirmLeave });
             저장하고 이미지 만들기
           </button>
           <button class="button primary" :disabled="busy">
-            {{ busy ? "저장 중…" : "일정 저장" }}
+            {{ busy && !deleting ? "저장 중…" : "일정 저장" }}
           </button>
         </div>
       </div>

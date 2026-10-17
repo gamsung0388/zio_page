@@ -105,7 +105,26 @@ test("time controls and independent events support two schedules on one day and 
     .getByRole("button", { name: "노래 방송 A 일정 수정", exact: true })
     .click();
   dialog = page.getByRole("dialog", { name: "일정 수정", exact: true });
-  await dialog.getByText("백업·다시 불러오기·삭제", { exact: true }).click();
+  const deleteButton = dialog.getByRole("button", {
+    name: "이 일정 삭제",
+    exact: true,
+  });
+  await expect(deleteButton).toBeVisible();
+  await expect(dialog.locator(".event-editor-tools")).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  let deleteRequests = 0;
+  page.on("request", (request) => {
+    if (request.method() === "DELETE") deleteRequests++;
+  });
+  page.once("dialog", (prompt) => prompt.dismiss());
+  await deleteButton.click();
+  await expect(dialog).toBeVisible();
+  expect(deleteRequests).toBe(0);
+  expect(
+    (await page.request.get("/api/admin/schedule-events/" + first.id)).status(),
+  ).toBe(200);
   page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "이 일정 삭제", exact: true })
@@ -186,7 +205,7 @@ test("stale per-event save shows a conflict and preserves the editor until expli
   await expect(dialog.getByLabel("일정 제목", { exact: true })).toHaveValue(
     "내 편집 초안",
   );
-  await dialog.getByText("백업·다시 불러오기·삭제", { exact: true }).click();
+  await dialog.getByText("백업·다시 불러오기", { exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "저장된 일정 다시 불러오기", exact: true })
@@ -341,8 +360,12 @@ test("new calendar, event list and period form fit all five sizes", async ({
   test.setTimeout(60000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await seed(page, { title: "반응형 여러 날 일정", end_date: "2027-01-06" });
+  await seed(page, {
+    title: "반응형 여러 날 일정",
+    end_date: "2027-01-06",
+  });
   await mkdir(".local/event-review/screenshots", { recursive: true });
+  await mkdir(".local/event-delete-review/screenshots", { recursive: true });
   for (const size of [
     { width: 1920, height: 1080 },
     { width: 1440, height: 900 },
@@ -378,6 +401,9 @@ test("new calendar, event list and period form fit all five sizes", async ({
       exact: true,
     });
     await expect(dialog.getByLabel("시작 시간", { exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole("button", { name: "이 일정 삭제", exact: true }),
+    ).toHaveCount(0);
     expect(
       await dialog.evaluate(
         (element) => element.scrollWidth <= element.clientWidth,
@@ -389,6 +415,44 @@ test("new calendar, event list and period form fit all five sizes", async ({
     });
     await dialog.getByRole("button", { name: "취소", exact: true }).click();
     await expect(dialog).toHaveCount(0);
+    await page
+      .getByRole("button", {
+        name: "반응형 여러 날 일정 일정 수정",
+        exact: true,
+      })
+      .click();
+    const editDialog = page.getByRole("dialog", {
+      name: "일정 수정",
+      exact: true,
+    });
+    await expect(
+      editDialog.getByRole("button", { name: "이 일정 삭제", exact: true }),
+    ).toBeVisible();
+    expect(
+      await editDialog
+        .locator(".event-form-footer button")
+        .evaluateAll((buttons) =>
+          buttons.every((button) => {
+            const rect = button.getBoundingClientRect();
+            return (
+              rect.top >= 0 && rect.bottom <= innerHeight && rect.height >= 44
+            );
+          }),
+        ),
+    ).toBe(true);
+    expect(
+      await editDialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path:
+        ".local/event-delete-review/screenshots/" +
+        size.width +
+        "-edit-dialog.png",
+      fullPage: false,
+    });
+    await editDialog.getByRole("button", { name: "취소", exact: true }).click();
   }
   expect(errors).toEqual([]);
 });

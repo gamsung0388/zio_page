@@ -1212,9 +1212,6 @@
   color: #315c3c;
   text-align: left;
 }
-.event-editor-tools .event-delete-action {
-  color: #a33e35;
-}
 .event-form-footer {
   flex-shrink: 0;
   padding: 12px 22px max(14px, env(safe-area-inset-bottom));
@@ -1912,4 +1909,43 @@
 .guide-section h2,
 .schedule-guide-page #guide-top {
   scroll-margin-top: 90px;
+}
+
+/* Event deletion remains visible while the editor body scrolls. */
+.event-editor-modal .event-form-footer .event-delete-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-right: auto;
+  min-height: 44px;
+  color: #9b4035;
+  border: 1px solid #e6cfc7;
+  background: #fff7f3;
+}
+.event-editor-modal
+  .event-form-footer
+  .event-delete-action:hover:not(:disabled) {
+  background: #fbece6;
+}
+.event-delete-action svg {
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .event-editor-modal .event-form-footer .modal-actions.has-delete {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .event-editor-modal .event-form-footer .has-delete .event-delete-action {
+    grid-column: 1;
+    grid-row: 2;
+    margin-right: 0;
+    width: 100%;
+    font-size: 12px;
+  }
+  .event-editor-modal .event-form-footer .has-delete .event-save-image {
+    grid-column: 2;
+    grid-row: 2;
+    white-space: normal;
+    font-size: 12px;
+  }
 }
