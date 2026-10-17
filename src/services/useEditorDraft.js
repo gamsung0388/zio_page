@@ -81,5 +81,14 @@ export function useEditorDraft({
       applying = false;
     }
   }
-  return { pending, storageError, restore, clear };
+  function persist() {
+    if (!active()) return false;
+    const saved =
+      storage && writeDraft(storage, owner, currentScope(), snapshot());
+    if (!saved)
+      storageError.value =
+        "이 브라우저에서 초안을 보관할 수 없어요. 페이지를 닫기 전에 변경 내용을 저장해주세요.";
+    return Boolean(saved);
+  }
+  return { pending, storageError, restore, clear, persist };
 }

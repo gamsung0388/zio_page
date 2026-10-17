@@ -88,6 +88,7 @@ before(async () => {
     "0002_security_and_indexes.sql",
     "0003_admin_password_change.sql",
     "0004_admin_schedule_weeks.sql",
+    "0005_admin_schedule_events.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -129,6 +130,7 @@ beforeEach(async () => {
     .run();
   await db.batch(
     [
+      "DELETE FROM admin_schedule_events",
       "DELETE FROM admin_schedule_weeks",
       "DELETE FROM songs",
       "DELETE FROM admin_sessions",
@@ -1408,6 +1410,325 @@ test("full schedule backup is authenticated, ordered, paginated and never expose
     assert.equal(
       (await request("/api/admin/schedules/backup" + query, "GET", null, auth))
         .status,
+      400,
+    );
+});
+
+const eventPayload = (extra = {}) => ({
+  title: "노래 방송",
+  description: "방송 안내",
+  kind: "broadcast",
+  time_mode: "timed",
+  start_date: "2027-01-04",
+  end_date: "2027-01-04",
+  start_time: "20:30",
+  end_time: "22:00",
+  ...extra,
+});
+async function createScheduleEvent(auth, extra = {}) {
+  const response = await request(
+    "/api/admin/schedule-events",
+    "POST",
+    eventPayload(extra),
+    auth,
+  );
+  assert.equal(response.status, 201, await response.clone().text());
+  return response.json();
+}
+test("individual events share session, forced-password, same-origin and CSRF protection", async () => {
+  for (const [path, method, body] of [
+    ["/api/admin/schedule-events?from=2027-01-01&to=2027-01-31", "GET"],
+    ["/api/admin/schedule-events/1", "GET"],
+    ["/api/admin/schedule-events/backup", "GET"],
+    ["/api/admin/schedule-events", "POST", eventPayload()],
+    [
+      "/api/admin/schedule-events/1",
+      "PUT",
+      { ...eventPayload(), expected_revision: 1 },
+    ],
+    ["/api/admin/schedule-events/1", "DELETE", { expected_revision: 1 }],
+  ])
+    assert.equal((await request(path, method, body)).status, 401);
+  const auth = await login();
+  assert.equal(
+    (
+      await request("/api/admin/schedule-events", "POST", eventPayload(), {
+        ...auth,
+        csrfToken: "",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/schedule-events",
+        "POST",
+        eventPayload(),
+        auth,
+        { Origin: "https://other.test" },
+      )
+    ).status,
+    403,
+  );
+  await db.prepare("UPDATE admin_users SET must_change_password=1").run();
+  for (const [path, method, body] of [
+    ["/api/admin/schedule-events?from=2027-01-01&to=2027-01-31", "GET"],
+    ["/api/admin/schedule-events/backup", "GET"],
+    ["/api/admin/schedule-events", "POST", eventPayload()],
+  ])
+    assert.equal((await request(path, method, body, auth)).status, 403);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM admin_schedule_events").first())
+      .n,
+    0,
+  );
+});
+test("multiple events on one date persist their KST times independently of weekly image notes", async () => {
+  const auth = await login(),
+    week = schedulePayload();
+  week.scheduleForm.mon = { content: "기존 이미지 메모", time: "미정" };
+  await request("/api/admin/schedules/2027-01-04", "PUT", week, auth);
+  const first = await createScheduleEvent(auth),
+    second = await createScheduleEvent(auth, {
+      title: "게임 합방",
+      kind: "collab",
+      start_time: "22:00",
+      end_time: "23:00",
+    });
+  assert.notEqual(first.id, second.id);
+  assert.equal(first.starts_at, "2027-01-04T11:30:00.000Z");
+  assert.equal(first.ends_at, "2027-01-04T13:00:00.000Z");
+  assert.equal(first.start_time, "20:30");
+  const response = await request(
+      "/api/admin/schedule-events?from=2027-01-04&to=2027-01-04",
+      "GET",
+      null,
+      auth,
+    ),
+    data = await response.json();
+  assert.equal(data.items.length, 2);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.equal("updated_by" in data.items[0], false);
+  const filtered = await (
+    await request(
+      "/api/admin/schedule-events?from=2027-01-01&to=2027-01-31&kind=collab&page_size=1",
+      "GET",
+      null,
+      auth,
+    )
+  ).json();
+  assert.equal(filtered.pagination.total, 1);
+  assert.equal(filtered.items[0].title, "게임 합방");
+  const row = await (
+    await request("/api/admin/schedules/2027-01-04", "GET", null, auth)
+  ).json();
+  assert.deepEqual(row.scheduleForm.mon, week.scheduleForm.mon);
+  assert.equal((await request("/api/schedule-events")).status, 404);
+});
+test("event overlap uses exclusive timed end and inclusive all-day end across weeks and midnight", async () => {
+  const auth = await login();
+  await createScheduleEvent(auth, {
+    start_date: "2027-01-03",
+    end_date: "2027-01-04",
+    start_time: "23:00",
+    end_time: "00:00",
+    title: "자정 종료",
+  });
+  await createScheduleEvent(auth, {
+    start_date: "2027-01-04",
+    end_date: "2027-01-06",
+    time_mode: "all_day",
+    start_time: "",
+    end_time: "",
+    title: "여러 날 종일",
+  });
+  await createScheduleEvent(auth, {
+    start_date: "2027-01-06",
+    end_date: "2027-01-08",
+    time_mode: "undecided",
+    start_time: "",
+    end_time: "",
+    title: "시간 미정 기간",
+  });
+  const at = async (day) =>
+    (
+      await (
+        await request(
+          "/api/admin/schedule-events?from=" + day + "&to=" + day,
+          "GET",
+          null,
+          auth,
+        )
+      ).json()
+    ).items.map((item) => item.title);
+  assert.deepEqual(await at("2027-01-03"), ["자정 종료"]);
+  assert.deepEqual(await at("2027-01-04"), ["여러 날 종일"]);
+  assert.deepEqual(await at("2027-01-06"), ["여러 날 종일", "시간 미정 기간"]);
+  assert.deepEqual(await at("2027-01-08"), ["시간 미정 기간"]);
+  assert.deepEqual(await at("2027-01-09"), []);
+});
+test("event versions atomically protect updates and deletes of one item without touching others", async () => {
+  const auth = await login(),
+    first = await createScheduleEvent(auth),
+    other = await createScheduleEvent(auth, { title: "다른 일정" }),
+    path = "/api/admin/schedule-events/" + first.id;
+  const updates = await Promise.all([
+    request(
+      path,
+      "PUT",
+      { ...eventPayload({ title: "변경 A" }), expected_revision: 1 },
+      auth,
+    ),
+    request(
+      path,
+      "PUT",
+      { ...eventPayload({ title: "변경 B" }), expected_revision: 1 },
+      auth,
+    ),
+  ]);
+  assert.deepEqual(updates.map((item) => item.status).sort(), [200, 409]);
+  const saved = await (await request(path, "GET", null, auth)).json();
+  assert.equal(saved.revision, 2);
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1 }, auth)).status,
+    409,
+  );
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 2 }, auth)).status,
+    200,
+  );
+  assert.equal((await request(path, "GET", null, auth)).status, 404);
+  assert.equal(
+    (await request("/api/admin/schedule-events/" + other.id, "GET", null, auth))
+      .status,
+    200,
+  );
+});
+test("event validation rejects invalid clocks, dates, periods, types, unknown fields and query parameters", async () => {
+  const auth = await login();
+  for (const extra of [
+    { title: "" },
+    { title: "x".repeat(121) },
+    { description: "x".repeat(2001) },
+    { kind: "__proto__" },
+    { time_mode: "daily" },
+    { start_date: "2027-02-29" },
+    { start_date: "1999-12-31" },
+    { end_date: "2100-01-01" },
+    { end_date: "2027-01-03" },
+    { start_time: "24:00" },
+    { start_time: "20:30:00" },
+    { start_time: 20 },
+    { end_time: "20:30" },
+    { end_time: "19:00" },
+    { time_mode: "all_day" },
+    { end_date: "2028-01-05" },
+    { extra: true },
+  ])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/schedule-events",
+          "POST",
+          eventPayload(extra),
+          auth,
+        )
+      ).status,
+      422,
+      JSON.stringify(extra),
+    );
+  for (const value of [[], null, "text"])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/schedule-events",
+          "POST",
+          value === null ? "null" : JSON.stringify(value),
+          auth,
+          { "Content-Type": "application/json" },
+        )
+      ).status,
+      400,
+    );
+  for (const query of [
+    "",
+    "from=2027-01-01&to=2027-12-31",
+    "from=2027-01-02&to=2027-01-01",
+    "from=2027-01-01&to=2027-01-31&kind=bad",
+    "from=2027-01-01&to=2027-01-31&page=0",
+    "from=2027-01-01&to=2027-01-31&page_size=201",
+    "from=2027-01-01&from=2027-01-02&to=2027-01-31",
+    "from=2027-01-01&to=2027-01-31&extra=1",
+  ])
+    assert.equal(
+      (await request("/api/admin/schedule-events?" + query, "GET", null, auth))
+        .status,
+      400,
+    );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM admin_schedule_events").first())
+      .n,
+    0,
+  );
+  const leap = await createScheduleEvent(auth, {
+    title: "🐼".repeat(120),
+    start_date: "2024-02-29",
+    end_date: "2024-02-29",
+  });
+  assert.equal(leap.start_date, "2024-02-29");
+});
+test("event backup pages by id without gaps and never includes actor or authentication fields", async () => {
+  const auth = await login();
+  await db
+    .prepare(
+      "INSERT INTO admin_schedule_events (title,description,kind,time_mode,starts_at,ends_at) SELECT '일정 '||key,'','broadcast','timed',?,? FROM json_each(?)",
+    )
+    .bind(
+      "2027-01-04T11:00:00.000Z",
+      "2027-01-04T12:00:00.000Z",
+      JSON.stringify(Array(203).fill(0)),
+    )
+    .run();
+  const first = await (
+    await request("/api/admin/schedule-events/backup", "GET", null, auth)
+  ).json();
+  assert.equal(first.items.length, 200);
+  assert.equal(first.next_after, first.items.at(-1).id);
+  const second = await (
+    await request(
+      "/api/admin/schedule-events/backup?after=" + first.next_after,
+      "GET",
+      null,
+      auth,
+    )
+  ).json();
+  assert.equal(second.items.length, 3);
+  assert.equal(second.next_after, null);
+  assert.equal(
+    new Set([...first.items, ...second.items].map((item) => item.id)).size,
+    203,
+  );
+  assert.ok(
+    first.items.every(
+      (item) => !("updated_by" in item) && !("csrfToken" in item),
+    ),
+  );
+  for (const query of [
+    "?after=0",
+    "?after=1&after=2",
+    "?extra=1",
+    "?after=9007199254740992",
+  ])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/schedule-events/backup" + query,
+          "GET",
+          null,
+          auth,
+        )
+      ).status,
       400,
     );
 });

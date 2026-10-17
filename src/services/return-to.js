@@ -15,7 +15,7 @@ export function safeReturnTo(value) {
     )
       return "";
     if (
-      !/^\/admin(?:\/(?:songs(?:\/new|\/[1-9]\d*\/edit)?|users|password-reset|password|schedule(?:\/image)?))?$/.test(
+      !/^\/admin(?:\/(?:songs(?:\/new|\/[1-9]\d*\/edit)?|users|password-reset|password|schedule(?:\/(?:image|notes))?))?$/.test(
         url.pathname,
       )
     )

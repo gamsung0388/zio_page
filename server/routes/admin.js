@@ -1,3 +1,4 @@
+import { eventRoutes } from "./schedule-events.js";
 import { scheduleRoutes } from "./schedules.js";
 import { registerAdmin } from "../services/admin-users.js";
 import { listAdmins } from "../repositories/admin-users.js";
@@ -45,6 +46,11 @@ export async function adminRoutes(request, env, path) {
     });
   }
   const auth = await requireAdmin(request, env);
+  if (
+    path === "/api/admin/schedule-events" ||
+    path.startsWith("/api/admin/schedule-events/")
+  )
+    return eventRoutes(request, env, path, auth);
   if (
     path === "/api/admin/schedules" ||
     path.startsWith("/api/admin/schedules/")

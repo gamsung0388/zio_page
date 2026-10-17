@@ -147,7 +147,7 @@ test("song expiration restores incomplete fields and private memo; logout can be
 test("day modal reopens and restores its draft after an expired save", async ({
   page,
 }) => {
-  await page.goto("/admin/schedule?month=2027-01");
+  await page.goto("/admin/schedule/notes?month=2027-01");
   await page
     .getByRole("button", { name: "2027-01-06 일정 편집", exact: true })
     .click();
@@ -338,7 +338,7 @@ test("Korean midnight refreshes today without moving the selected month or erasi
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-10-31T14:59:58Z") });
-  await page.goto("/admin/schedule?month=2026-10");
+  await page.goto("/admin/schedule/notes?month=2026-10");
   await expect(page.locator(".calendar-day.is-today")).toHaveAttribute(
     "aria-label",
     "2026-10-31 일정 편집",

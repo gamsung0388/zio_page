@@ -4,11 +4,13 @@ import { useRoute } from "vue-router";
 import { isDate, mondayOf } from "../../../shared/schedule/dates.js";
 const route = useRoute();
 const month = computed(() =>
-  isDate(route.query.week)
-    ? route.query.week.slice(0, 7)
-    : isDate(route.query.month + "-01")
-      ? route.query.month
-      : undefined,
+  route.path !== "/admin/schedule/image" && isDate(route.query.month + "-01")
+    ? route.query.month
+    : isDate(route.query.week)
+      ? route.query.week.slice(0, 7)
+      : isDate(route.query.month + "-01")
+        ? route.query.month
+        : undefined,
 );
 const week = computed(() =>
   isDate(route.query.week)
@@ -32,6 +34,12 @@ const week = computed(() =>
       active-class=""
       exact-active-class=""
       >스케줄 이미지</RouterLink
+    ><RouterLink
+      :to="{ path: '/admin/schedule/notes', query: { month, week } }"
+      :class="{ active: $route.path === '/admin/schedule/notes' }"
+      active-class=""
+      exact-active-class=""
+      >주간 이미지 메모</RouterLink
     >
   </nav>
 </template>

@@ -59,3 +59,18 @@
 `GET /api/admin/schedules/backup?after=YYYY-MM-DD`는 인증된 관리자에게 최대 50개의 주간 문서와 `next_after`를 반환합니다. 첫 요청은 after를 생략하며 다음 요청에는 반환된 커서를 전달합니다. 커서는 월요일 날짜이며 다른 쿼리·중복 after는 거부합니다. 마지막 페이지의 next_after는 null입니다. 기존 일정 조회와 동일하게 강제 비밀번호 변경 검사를 받고 no-store로 반환하며 updated_by나 계정 비밀값은 포함하지 않습니다.
 
 브라우저의 JSON 파일은 `{version:1,exported_at, weeks:[{week_start,selectedTemplate,scheduleForm,editorOptions}]}`입니다. 버전·주 날짜·중복·알 수 없는 항목·길이·템플릿·옵션을 공용 검증으로 확인합니다. 최대 2,000주·10MB이고 선택 주를 현재 주의 편집 화면에 가져온 뒤 기존 PUT과 expected_revision으로 수동 저장합니다. 새 쓰기 API나 일괄 강제 덮어쓰기는 추가하지 않았습니다.
+
+## 관리자 개별 일정과 기간
+
+| 메서드 | URL | 용도 |
+|---|---|---|
+| GET | `/api/admin/schedule-events?from=YYYY-MM-DD&to=YYYY-MM-DD&kind=&page=1&page_size=200` | 겹치는 개별 일정 조회, 최대 63일, 페이지당 최대 200 |
+| POST | `/api/admin/schedule-events` | 개별 일정 등록 |
+| GET | `/api/admin/schedule-events/:id` | 일정 수정용 단건 조회 |
+| PUT | `/api/admin/schedule-events/:id` | 전체 일정 수정, expected_revision 필수 |
+| DELETE | `/api/admin/schedule-events/:id` | 해당 일정 삭제, JSON expected_revision 필수 |
+| GET | `/api/admin/schedule-events/backup?after=ID` | 전체 백업용 id 순서 조회, 200개 및 next_after |
+
+입력은 title/description/kind/time_mode/start_date/end_date/start_time/end_time입니다. 시간은 HH:mm이며 시간 지정 외에는 빈 문자열이어야 합니다. 서버가 한국 날짜/시각을 UTC starts_at/ends_at으로 변환합니다. 종료가 정확히 자정이면 다음 날짜 조회에서 제외하고, 종일/시간 미정의 종료 날짜는 포함합니다. 정규 시각 외 자유 안내는 기존 주간 메모 API로 유지합니다.
+
+기존 관리자 인증·강제 비밀번호 변경·Origin·CSRF를 공유하며 모두 no-store입니다. 제목 1~120자, 설명 0~2000자, 등록 날짜 2000~2099년, 최대 366일을 검증합니다. 잘못된 JSON 객체는 기존 공통 400, 필드 검증은 422, 수정/삭제 버전 충돌은 409입니다. updated_by/인증 비밀값은 응답하지 않습니다. 자세한 계약은 [16 개별 일정](16_INDIVIDUAL_SCHEDULE_EVENTS.md)에 기록합니다.

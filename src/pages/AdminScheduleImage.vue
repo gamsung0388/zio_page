@@ -24,6 +24,12 @@ import {
   TEMPLATE_LIST,
   FONT_SIZE_LIMITS,
 } from "../../shared/schedule/scheduleConfig.js";
+import { fetchEvents } from "../schedule/events-service.js";
+import {
+  eventInput,
+  eventPeriodLabel,
+  projectEventsToWeek,
+} from "../../shared/schedule/events.js";
 import { useScheduleEditor } from "../schedule/useScheduleEditor.js";
 import { useKstToday } from "../schedule/useKstToday.js";
 import { exportElementImage } from "../schedule/exportImage.js";
@@ -98,6 +104,80 @@ const copyOpen = ref(false),
 const importData = ref(null),
   importWeek = ref("");
 watch(week, editor.load, { immediate: true });
+const eventImportOpen = ref(false),
+  eventLoading = ref(false),
+  eventItems = ref([]),
+  eventSelected = ref([]),
+  eventError = ref(""),
+  includeEmpty = ref(false),
+  autoImportWeek = ref("");
+let eventController;
+watch(
+  [loading, () => route.query.events],
+  () => {
+    if (
+      !loading.value &&
+      !error.value &&
+      route.query.events === "1" &&
+      autoImportWeek.value !== week.value
+    ) {
+      autoImportWeek.value = week.value;
+      openEvents();
+    }
+  },
+  { immediate: true },
+);
+async function openEvents() {
+  if (locked.value) return;
+  eventController?.abort();
+  eventController = new AbortController();
+  eventItems.value = [];
+  eventSelected.value = [];
+  includeEmpty.value = false;
+  eventImportOpen.value = true;
+  eventLoading.value = true;
+  transferring.value = true;
+  eventError.value = "";
+  try {
+    eventItems.value = await fetchEvents(week.value, addDays(week.value, 6), {
+      signal: eventController.signal,
+    });
+    eventSelected.value = eventItems.value
+      .filter((item) => ["broadcast", "collab", "off"].includes(item.kind))
+      .map((item) => item.id);
+  } catch (err) {
+    if (err.name !== "AbortError") eventError.value = err.message;
+  } finally {
+    eventLoading.value = false;
+    transferring.value = false;
+  }
+}
+function applyEvents() {
+  try {
+    const selected = eventItems.value.filter((item) =>
+      eventSelected.value.includes(item.id),
+    );
+    if (!selected.length) throw new Error("가져올 일정을 선택해주세요.");
+    const projected = projectEventsToWeek(selected, week.value);
+    if (
+      !window.confirm(
+        "선택한 일정으로 이 주의 내용·시간을 채울까요? 일정 저장 전에는 기존 이미지 메모가 유지됩니다.",
+      )
+    )
+      return;
+    for (const [day, value] of Object.entries(projected))
+      if (includeEmpty.value || value.content || value.time) {
+        editor.updateDayField(day, "content", value.content);
+        editor.updateDayField(day, "time", value.time);
+      }
+    eventImportOpen.value = false;
+    notice.value =
+      "일정을 가져왔어요. 이미지 미리보기를 확인하고 필요한 경우 일정 저장을 눌러주세요.";
+  } catch (err) {
+    eventError.value = err.message;
+  }
+}
+onBeforeUnmount(() => eventController?.abort());
 async function navigateWeek(date, input) {
   try {
     if (isDate(date) && !locked.value)
@@ -363,6 +443,9 @@ function applyImport() {
         >
           저장된 일정 불러오기
         </button>
+        <button class="btn btn-outline" :disabled="locked" @click="openEvents">
+          등록된 일정 가져오기
+        </button>
         <div class="schedule-image-actions">
           <button
             class="btn btn-lime"
@@ -609,6 +692,56 @@ function applyImport() {
           현재 주에 가져오기
         </button>
       </div></Modal
+    >
+    <Modal
+      v-if="eventImportOpen"
+      title="등록된 일정 가져오기"
+      :busy="eventLoading"
+      @close="eventImportOpen = false"
+      ><Notice
+        :loading="eventLoading"
+        :error="eventError"
+        @retry="openEvents"
+      /><template v-if="!eventLoading"
+        ><p>
+          이미지에 넣을 일정을 선택하세요. 개인·기타 일정은 직접 선택한 경우에만
+          포함됩니다.
+        </p>
+        <p v-if="!eventItems.length" class="form-hint">
+          이 주에 등록된 개별 일정이 없어요.
+        </p>
+        <div class="event-import-options">
+          <label v-for="item in eventItems" :key="item.id"
+            ><input
+              v-model="eventSelected"
+              type="checkbox"
+              :value="item.id"
+            /><span
+              ><strong>{{ item.title }}</strong
+              ><small>{{ eventPeriodLabel(item) }}</small></span
+            ></label
+          >
+        </div>
+        <label class="event-include-empty"
+          ><input v-model="includeEmpty" type="checkbox" />선택한 일정이 없는
+          날짜도 비우기</label
+        >
+        <p class="schedule-help">
+          한 날짜에 여러 일정이면 내용에 시간과 제목을 함께 넣습니다. 이미지
+          글자 넘침은 기존 출력 검사로 확인합니다.
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="eventImportOpen = false">
+            취소</button
+          ><button
+            class="btn btn-primary"
+            :disabled="!eventSelected.length"
+            @click="applyEvents"
+          >
+            선택 일정 채우기
+          </button>
+        </div></template
+      ></Modal
     >
   </div>
 </template>

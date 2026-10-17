@@ -65,7 +65,7 @@ test("calendar persistence, shared image editor, clearing one date and administr
   page,
   context,
 }) => {
-  await page.goto("/admin/schedule?month=2026-10");
+  await page.goto("/admin/schedule/notes?month=2026-10");
   await page
     .getByRole("button", { name: "2026-10-14 일정 편집", exact: true })
     .click();
@@ -106,7 +106,7 @@ test("calendar persistence, shared image editor, clearing one date and administr
   ).toHaveValue("월요일 추가");
   await page
     .getByRole("navigation", { name: "일정 관리 메뉴" })
-    .getByRole("link", { name: "일정 달력", exact: true })
+    .getByRole("link", { name: "주간 이미지 메모", exact: true })
     .click();
   await page
     .getByRole("button", { name: "2026-10-14 일정 편집", exact: true })
@@ -296,7 +296,7 @@ test("calendar, editor and day modal fit all five target sizes", async ({
   ]) {
     await page.setViewportSize(size);
     for (const [name, path] of [
-      ["calendar", "/admin/schedule?month=2026-10"],
+      ["calendar", "/admin/schedule/notes?month=2026-10"],
       ["image", "/admin/schedule/image?week=" + week],
     ]) {
       await page.goto(path);
@@ -322,7 +322,7 @@ test("calendar, editor and day modal fit all five target sizes", async ({
         fullPage: true,
       });
     }
-    await page.goto("/admin/schedule?month=2026-10");
+    await page.goto("/admin/schedule/notes?month=2026-10");
     await page
       .getByRole("button", { name: "2026-10-14 일정 편집", exact: true })
       .click();
