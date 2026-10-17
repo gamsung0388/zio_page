@@ -42,3 +42,11 @@
 최종 실행 결과와 운영 확인은 아래에 기록합니다.
 
 최종 검증: `npm test` 72개, 주간 삭제·주간 이미지·초안 복구 브라우저 19개로 총 **91개 통과**했습니다. `npm run build`도 성공했습니다. 기존 5개 반응형 크기와 360/390/1440px 삭제 확인 창을 검증했습니다. 증거는 `.local/week-delete-review/checks.json`, `.local/week-delete-review/e2e-results/`, `.local/week-delete-review/390-confirm.png`에 보관합니다.
+
+## 운영 반영 완료
+
+- 배포 소스 `ba68102`, Worker `551d872a-2f0c-4797-aecb-39e22f8c4858`. GitHub `codex/phase1`에 반영했습니다.
+- 확인 시각 2026-10-17T04:46:50.640Z (한국 시간 2026-10-17 13:46). 운영 HTML/자산 59개가 빌드와 일치하며 DB 상태 정상입니다. 익명 관리자 조회 5개와 새 DELETE 요청은 모두 401로 차단됐습니다.
+- 운영 자산을 로드한 QA 브라우저에서 1440/390/360px의 주간 삭제 확인 창, 7일 미리보기, 취소와 버튼 접근을 확인했습니다. 기존 일정 가져오기와 PNG 1672×941 출력도 정상입니다. 가로 넘침·실행 오류·CSP 위반이 없습니다.
+- QA 브라우저의 관리자 GET만 검증 자료로 대체했고 쓰기 요청은 차단했습니다. 실제 운영 계정으로 로그인하거나 저장 메모를 삭제하지 않았습니다. 인증 후 삭제·충돌·복구는 격리된 테스트 D1에서 검증했습니다.
+- DB migration이나 운영 데이터 정리는 수행하지 않았습니다. 운영 메모의 실제 삭제 0건입니다. 증거는 `.local/week-delete-review/production/verification.json`과 `production/screenshots/*-week-delete.png`에 보관합니다. 화면의 내용은 검증 예시입니다.
