@@ -192,3 +192,5 @@ UI·UX 개선 운영 배포 완료: 소스 `790d5fe`, Worker `05c7a7a3-1684-44b0
 **일정 목록 → 등록할 날짜 → 선택한 날짜에 일정 등록**으로 원하는 날짜의 일정을 입력합니다. 목록 위 **새 일정 등록**도 선택한 날짜를 사용하고, 날짜 묶음의 **＋ 일정 추가**는 그 날짜로 바로 엽니다. 등록창에서도 시작·종료 날짜와 시간을 바꿀 수 있습니다.
 
 일정 메뉴의 **사용 가이드**(`/admin/schedule/guide`)에서 날짜·기간, 주간 이미지, 메모 삭제, 백업·복구, 초안과 자주 묻는 질문을 확인합니다. 가이드는 관리자 로그인 후 사용할 수 있습니다. [구현·검증·배포 기록](docs/19_LIST_DATE_AND_GUIDE.md) · [배포 후 보완 분석](docs/20_POST_GUIDE_REVIEW.md).
+
+2026-10-17 목록 날짜 선택·사용 가이드 운영 반영 완료: 배포 소스 `23bb4f3`, Worker `5e902e33-8147-4a2b-806c-ab6a20b7f74d`. 이번 단위·API 72개와 브라우저 16개, 총 88개 검증을 통과했습니다. 다섯 기준 화면 크기, 운영 자산 61개 일치·DB 연결·관리자 접근 제한을 확인했으며 DB migration은 없습니다. [일정 목록](https://zio-home.ryan9320.workers.dev/admin/schedule?view=list) · [사용 가이드](https://zio-home.ryan9320.workers.dev/admin/schedule/guide) · [배포 후 분석과 다음 개선 순서](docs/20_POST_GUIDE_REVIEW.md).

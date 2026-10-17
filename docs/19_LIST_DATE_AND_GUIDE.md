@@ -34,3 +34,15 @@
 최종 실행 결과와 운영 확인은 아래에 기록합니다. 배포 이후의 최적화·기능 보완 분석은 [20 배포 후 분석](20_POST_GUIDE_REVIEW.md)에 별도로 정리합니다.
 
 검증 결과: 단위·API 72개, 실제 브라우저 16개로 총 **88개 통과**했습니다. 가이드 제목 위치 보완 뒤 새 기능 4개를 다시 확인했습니다. 증거는 `.local/list-guide-review/checks.json`, `e2e-results/`, `final-guide-results/`, `screenshots/`에 보관합니다.
+
+## 운영 배포와 최종 확인
+
+2026-10-17 13:59 (Asia/Seoul) 운영 확인 완료. 배포 소스는 `23bb4f3`, Worker 버전은 `5e902e33-8147-4a2b-806c-ab6a20b7f74d`입니다. `npm run deploy`의 빌드와 업로드가 성공했고 GitHub `codex/phase1`에 소스를 반영했습니다. 문서만 추가로 갱신한 커밋은 이 실행 소스 뒤에 위치합니다.
+
+- 운영 D1 health 정상, 공개 자산 61개 SHA256이 최종 빌드와 일치합니다. 배포 설정용 비공개 제어 파일은 공개 자산 비교에서 제외했습니다.
+- 일정 조회·상세·백업, 주간 메모 조회·백업·삭제의 익명 접근 6개가 모두 401로 차단됩니다. 새 가이드와 기존 보호 화면의 로그인 복귀도 확인했습니다.
+- 운영 파일로 1440px·390px·360px에서 목록의 선택 날짜 전달, 등록창, 가이드, 기존 주간 삭제 미리보기와 이미지 출력을 확인했습니다. PNG 크기는 1672×941이며 가로 넘침·페이지 오류·CSP 위반은 없었습니다.
+- 보호 UI 검증은 격리 브라우저에서 관리자 GET 응답만 테스트 자료로 대체했습니다. 저장·삭제는 차단했으며 운영 계정으로 실제 수정하지 않았습니다. 실제 로그인·저장·동시 수정은 앞선 격리 로컬 D1 테스트 범위입니다.
+- 증거: `.local/list-guide-review/production/verification.json`, `production/screenshots/`. 운영 데이터 검증용 쓰기 0회, 이번 DB migration 없음.
+
+[일정 목록](https://zio-home.ryan9320.workers.dev/admin/schedule?view=list) · [사용 가이드](https://zio-home.ryan9320.workers.dev/admin/schedule/guide) · [배포 후 보완 분석](20_POST_GUIDE_REVIEW.md)
