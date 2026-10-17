@@ -154,13 +154,14 @@ test("date periods include all-day end dates and exclude a timed midnight end da
   await dialog.getByLabel("종료일", { exact: true }).fill("2027-01-08");
   await expect(dialog.getByLabel("시작 시간", { exact: true })).toHaveCount(0);
   await saveUi(page, dialog);
-  for (const date of ["2027-01-06", "2027-01-07", "2027-01-08"])
-    await expect(
-      day(date).getByRole("button", {
-        name: "여러 날 휴방 일정 수정",
-        exact: true,
-      }),
-    ).toBeVisible();
+  const period = page.getByRole("button", {
+    name: "여러 날 휴방 일정 수정",
+    exact: true,
+  });
+  await expect(period).toBeVisible();
+  await expect(period).toHaveAttribute("data-start", "2027-01-06");
+  await expect(period).toHaveAttribute("data-end", "2027-01-08");
+  await expect(period).toHaveCSS("grid-column", "3 / span 3");
 });
 test("stale per-event save shows a conflict and preserves the editor until explicit reload", async ({
   page,

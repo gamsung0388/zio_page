@@ -1,0 +1,128 @@
+.calendar-range-hint {
+  margin: 4px 0 14px;
+  color: #63735c;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.event-calendar-week {
+  --calendar-cell-pad: 7px;
+  --calendar-cell-gap: 5px;
+  --period-height: 40px;
+  --period-step: 44px;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  position: relative;
+  min-width: 0;
+  background: #e5eae3;
+}
+.event-calendar-week .event-calendar-day {
+  padding: var(--calendar-cell-pad);
+  gap: var(--calendar-cell-gap);
+}
+.event-calendar-week .event-date-add {
+  height: 36px;
+  min-height: 36px;
+  flex: none;
+  margin-bottom: calc(var(--period-rows) * var(--period-step));
+}
+.event-period-layer {
+  position: absolute;
+  top: calc(var(--calendar-cell-pad) + 36px + var(--calendar-cell-gap));
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: var(--period-height);
+  gap: calc(var(--period-step) - var(--period-height)) 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+.event-period-layer .event-period-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: var(--period-height);
+  min-width: 0;
+  max-width: none;
+  margin: 0 6px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  pointer-events: auto;
+  box-shadow:
+    inset 0 1px 0 #ffffff70,
+    inset 0 -1px 0 #2541230a;
+}
+.event-period-bar strong {
+  font-size: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.event-period-bar small {
+  font-size: 10px;
+  flex: 0 2 auto;
+  min-width: 0;
+  opacity: 0.9;
+}
+.event-period-bar.continues-before {
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 0;
+}
+.event-period-bar.continues-after {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-right: 0;
+}
+.period-continuation {
+  font-size: 19px;
+  font-weight: 600;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.period-next {
+  margin-left: auto;
+}
+.event-period-bar:hover {
+  filter: brightness(0.97);
+  box-shadow: inset 0 0 0 1px #315c3540;
+}
+.event-period-bar:focus-visible {
+  outline: 3px solid #315e3b;
+  outline-offset: -3px;
+}
+@media (max-width: 640px) {
+  .event-calendar-week {
+    --calendar-cell-pad: 4px;
+    --calendar-cell-gap: 4px;
+    --period-height: 36px;
+    --period-step: 40px;
+  }
+  .event-period-layer .event-period-bar {
+    padding: 4px;
+    gap: 4px;
+    margin-left: 3px;
+    margin-right: 3px;
+  }
+  .event-period-bar.continues-before {
+    margin-left: 0;
+  }
+  .event-period-bar.continues-after {
+    margin-right: 0;
+  }
+  .event-period-bar strong {
+    font-size: 10px;
+  }
+  .event-period-bar small {
+    display: none;
+  }
+  .period-continuation {
+    font-size: 16px;
+  }
+  .calendar-range-hint {
+    font-size: 11px;
+  }
+}

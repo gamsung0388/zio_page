@@ -26,7 +26,7 @@ import {
   eventDateLabel,
   eventRangeLabel,
 } from "../schedule/event-presentation.js";
-import { indexEventsByDate } from "../../shared/schedule/event-index.js";
+import ScheduleMonthCalendar from "../components/schedule/ScheduleMonthCalendar.vue";
 import { queryPage } from "../../shared/pagination.js";
 import { useScheduleEvents } from "../schedule/useScheduleEvents.js";
 import {
@@ -142,9 +142,6 @@ const listItems = computed(() => events.value);
 const dayGroups = computed(() =>
   groupEventList(listItems.value, month.value, selectedDay.value),
 );
-const eventsByDay = computed(() =>
-  indexEventsByDate(events.value, dates.value),
-);
 const resultCount = computed(
   () =>
     (view.value === "list" ? total.value : inMonth.value.length) +
@@ -154,9 +151,6 @@ const resultCount = computed(
 watch(editId, (value) => {
   if (!value) pendingImport.value = null;
 });
-function dayEvents(date) {
-  return eventsByDay.value.get(date) || [];
-}
 function kindLabel(value) {
   return EVENT_KINDS.find((kind) => kind.value === value)?.label || "기타";
 }
@@ -460,72 +454,15 @@ onBeforeUnmount(() => {
         일정 목록으로 보기
       </button>
       <template v-if="!loading && !error"
-        ><div
+        ><ScheduleMonthCalendar
           v-if="view === 'calendar'"
-          class="calendar-grid event-calendar-grid"
-          aria-label="방송 일정 달력"
-        >
-          <div
-            v-for="day in ['월', '화', '수', '목', '금', '토', '일']"
-            :key="day"
-            class="calendar-weekday"
-            :class="{ 'is-weekend': day === '토' || day === '일' }"
-          >
-            {{ day }}
-          </div>
-          <article
-            v-for="date in dates"
-            :key="date"
-            class="event-calendar-day"
-            :class="{
-              'other-month': !date.startsWith(month),
-              'is-today': date === today,
-              'is-weekend': [0, 6].includes(
-                new Date(date + 'T00:00:00Z').getUTCDay(),
-              ),
-            }"
-          >
-            <button
-              class="event-date-add"
-              :aria-label="date + ' 새 일정'"
-              :aria-current="date === today ? 'date' : undefined"
-              :disabled="!isEventDate(date)"
-              @click="open('new', date)"
-            >
-              <span>{{ Number(date.slice(-2)) }}</span
-              ><small v-if="date === today">오늘</small
-              ><span aria-hidden="true">＋</span></button
-            ><button
-              v-for="event in dayEvents(date).slice(0, 3)"
-              :key="event.id"
-              class="event-chip"
-              :class="'event-kind-' + event.kind"
-              :aria-label="event.title + ' 일정 수정'"
-              :title="
-                event.title +
-                ' · ' +
-                kindLabel(event.kind) +
-                ' · ' +
-                eventRangeLabel(event)
-              "
-              @click="open(event.id)"
-            >
-              <small>{{ eventTimeLabel(event, date) }}</small
-              ><strong>{{ event.title }}</strong
-              ><span
-                v-if="event.start_date !== event.end_date"
-                class="event-span-label"
-                >기간 일정</span
-              ></button
-            ><button
-              v-if="dayEvents(date).length > 3"
-              class="event-more"
-              @click="more(date)"
-            >
-              ＋{{ dayEvents(date).length - 3 }}개 더 보기
-            </button>
-          </article>
-        </div>
+          :events="events"
+          :dates="dates"
+          :month="month"
+          :today="today"
+          @create="open('new', $event)"
+          @edit="open($event)"
+          @more="more" />
         <div v-else class="schedule-event-list" aria-label="개별 일정 목록">
           <div v-if="selectedDay" class="event-day-filter">
             <strong>{{ eventDateLabel(selectedDay) }} 일정</strong>
@@ -633,8 +570,8 @@ onBeforeUnmount(() => {
       ></template>
     </section>
     <p class="schedule-help">
-      모든 관리자가 함께 쓰는 관리자 전용 일정입니다. 기간 일정은 해당 날짜마다
-      표시되며, 자정에 끝나는 일정은 다음 날에 표시되지 않습니다.
+      모든 관리자가 함께 쓰는 관리자 전용 일정입니다. 기간 일정은 주 단위 막대로
+      이어지며, 자정에 끝나는 일정은 다음 날에 표시되지 않습니다.
       <RouterLink to="/admin/schedule/notes"
         >기존 날짜별 메모는 주간 이미지 메모에서 확인하세요.</RouterLink
       >
