@@ -15,6 +15,8 @@ import {
 import {
   EVENT_KINDS,
   isEventDate,
+  EVENT_DATE_MIN,
+  EVENT_DATE_MAX,
   eventOccursOn,
   eventTimeLabel,
   eventPeriodLabel,
@@ -93,6 +95,28 @@ const newDate = computed(
     selectedDay.value ||
     (today.value.startsWith(month.value) ? today.value : month.value + "-01"),
 );
+const registrationDate = ref(newDate.value),
+  registrationError = ref(""),
+  registrationInput = ref(null);
+watch([month, selectedDay], () => {
+  registrationDate.value = newDate.value;
+  registrationError.value = "";
+});
+watch(registrationDate, () => {
+  if (isEventDate(registrationDate.value)) registrationError.value = "";
+});
+function openNew() {
+  if (transfer.value) return;
+  if (view.value === "list") {
+    if (!isEventDate(registrationDate.value)) {
+      registrationError.value =
+        "등록할 날짜를 2000년부터 2099년 사이로 선택해주세요.";
+      registrationInput.value?.focus();
+      return;
+    }
+    open("new", registrationDate.value);
+  } else open();
+}
 const listItems = computed(() =>
   selectedDay.value
     ? events.value.filter((item) => eventOccursOn(item, selectedDay.value))
@@ -215,6 +239,7 @@ async function saved(event, image) {
         date: undefined,
       },
     });
+    if (view.value === "list") registrationDate.value = event.start_date;
     if (month.value === previousMonth && !resetKind) await load();
   }
 }
@@ -296,7 +321,7 @@ onBeforeUnmount(() => {
           일정마다 기간과 시간을 정하고, 같은 날 여러 일정도 따로 관리하세요.
         </p>
       </div>
-      <button class="btn btn-primary" :disabled="transfer" @click="open()">
+      <button class="btn btn-primary" :disabled="transfer" @click="openNew">
         새 일정 등록
       </button>
     </div>
@@ -389,6 +414,53 @@ onBeforeUnmount(() => {
           loading ? "일정을 불러오는 중…" : resultCount
         }}</span>
       </div>
+      <form
+        v-if="view === 'list'"
+        class="event-list-register"
+        aria-label="날짜를 골라 일정 등록"
+        novalidate
+        @submit.prevent="openNew"
+      >
+        <div class="event-list-register-controls">
+          <label class="field"
+            >등록할 날짜<input
+              ref="registrationInput"
+              v-model="registrationDate"
+              type="date"
+              :min="EVENT_DATE_MIN"
+              :max="EVENT_DATE_MAX"
+              :disabled="transfer"
+              :aria-invalid="registrationError ? 'true' : undefined"
+              :aria-describedby="
+                registrationError
+                  ? 'event-registration-error'
+                  : 'event-registration-hint'
+              "
+              required
+          /></label>
+          <button class="btn btn-primary" type="submit" :disabled="transfer">
+            선택한 날짜에 일정 등록
+          </button>
+        </div>
+        <p id="event-registration-hint">
+          목록에서 원하는 날짜를 고른 뒤 등록하세요. 등록창에서도 시작·종료
+          날짜와 시간을 바꿀 수 있어요.
+        </p>
+        <p
+          v-if="registrationDate && !registrationDate.startsWith(month)"
+          class="event-registration-month-hint"
+        >
+          다른 달의 날짜예요. 저장하면 해당 일정이 있는 달로 이동합니다.
+        </p>
+        <p
+          v-if="registrationError"
+          id="event-registration-error"
+          class="form-error"
+          role="alert"
+        >
+          {{ registrationError }}
+        </p>
+      </form>
       <Notice
         :loading="loading"
         :error="error"
@@ -487,7 +559,7 @@ onBeforeUnmount(() => {
                   : month.replace("-", "년 ") + "월"
               }}에 필요한 일정을 추가해보세요.
             </p>
-            <button class="btn btn-primary" @click="open()">
+            <button class="btn btn-primary" @click="openNew">
               이 날짜에 일정 등록
             </button>
             <button
@@ -511,7 +583,16 @@ onBeforeUnmount(() => {
                 }}</time
                 ><small v-if="group.date === today">오늘</small>
               </h3>
-              <span>{{ group.items.length }}개</span>
+              <div class="event-group-actions">
+                <span>{{ group.items.length }}개</span
+                ><button
+                  class="text-button"
+                  :aria-label="group.date + ' 일정 추가'"
+                  @click="open('new', group.date)"
+                >
+                  ＋ 일정 추가
+                </button>
+              </div>
             </div>
             <article
               v-for="event in group.items"

@@ -2,7 +2,13 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { isDate, mondayOf } from "../../../shared/schedule/dates.js";
+import { EVENT_KINDS } from "../../../shared/schedule/events.js";
 const route = useRoute();
+const kind = computed(() =>
+  EVENT_KINDS.some((item) => item.value === route.query.kind)
+    ? route.query.kind
+    : undefined,
+);
 const month = computed(() =>
   route.path !== "/admin/schedule/image" && isDate(route.query.month + "-01")
     ? route.query.month
@@ -19,11 +25,19 @@ const week = computed(() =>
       ? mondayOf(month.value + "-01")
       : undefined,
 );
+const view = computed(() =>
+  ["calendar", "list"].includes(route.query.view)
+    ? route.query.view
+    : undefined,
+);
+const day = computed(() =>
+  isDate(route.query.day) ? route.query.day : undefined,
+);
 </script>
 <template>
   <nav class="schedule-tabs" aria-label="일정 관리 메뉴">
     <RouterLink
-      :to="{ path: '/admin/schedule', query: { month, week } }"
+      :to="{ path: '/admin/schedule', query: { month, week, view, day, kind } }"
       :class="{ active: $route.path === '/admin/schedule' }"
       active-class=""
       exact-active-class=""
@@ -40,6 +54,15 @@ const week = computed(() =>
       active-class=""
       exact-active-class=""
       >주간 이미지 메모</RouterLink
+    ><RouterLink
+      :to="{
+        path: '/admin/schedule/guide',
+        query: { month, week, view, day, kind },
+      }"
+      :class="{ active: $route.path === '/admin/schedule/guide' }"
+      active-class=""
+      exact-active-class=""
+      >사용 가이드</RouterLink
     >
   </nav>
 </template>

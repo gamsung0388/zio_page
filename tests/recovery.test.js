@@ -41,6 +41,7 @@ test("login returns only to canonical known admin routes and preserves their que
     "/admin",
     "/admin/songs/12/edit?returnTo=%2Fadmin%2Fsongs",
     "/admin/schedule/image?week=2027-01-04",
+    "/admin/schedule/guide?month=2027-01&view=list",
     "/admin/password",
   ])
     assert.equal(safeReturnTo(path), path);

@@ -65,6 +65,11 @@ const router = createRouter({
       meta: { title: "방송 일정 달력", admin: true },
     },
     {
+      path: "/admin/schedule/guide",
+      component: () => import("../pages/AdminScheduleGuide.vue"),
+      meta: { title: "일정 관리 사용 가이드", admin: true },
+    },
+    {
       path: "/admin/schedule/notes",
       component: () => import("../pages/AdminScheduleNotes.vue"),
       meta: { title: "주간 이미지 메모", admin: true },
