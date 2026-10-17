@@ -178,3 +178,5 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 ## 일정 관리 사용성 개선 (2026-10-17)
 
 PC·모바일 일정 입력의 시작/종료 묶음과 총 기간, 고정 저장 버튼, 자정 종료 안내를 제공합니다. 새 일정은 보고 있는 날짜·월과 구분을 기준으로 열립니다. 날짜별 목록·요일·진행 중 표시, 필터 해제와 빈 화면 등록 버튼을 정리했고 저장한 일정이 필터에 가려지면 전체 구분으로 바꿔 보여줍니다. 이미지 편집의 저장은 주간 이미지 메모에 반영됩니다. 개별 일정은 일정 달력에서 관리합니다. [분석·수정·검증 기록](docs/17_SCHEDULE_UX.md).
+
+UI·UX 개선 운영 배포 완료: 소스 `790d5fe`, Worker `05c7a7a3-1684-44b0-b6ba-ee14a0032b89`. 총 113개 항목 검증, 운영 자산 59개 일치와 PC·모바일 입력/이미지 출력을 확인했습니다. 이번 배포에 DB migration은 없습니다. [일정 관리](https://zio-home.ryan9320.workers.dev/admin/schedule) · [상세 확인 기록](docs/17_SCHEDULE_UX.md).

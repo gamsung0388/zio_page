@@ -45,4 +45,13 @@
 
 최종 전체 브라우저 실행은 36개 통과 후 기존 노래 CRUD·CSV·로그아웃을 한 번에 검증하는 시나리오가 총 30초 제한에 걸려 끝의 관리자 2개가 미실행됐습니다. 해당 `site.spec.js` 8개만 총 시나리오 제한을 90초로 두고 재실행해 모두 통과했습니다. 개별 응답/화면 검증의 기대값과 대기 제한은 바꾸지 않았습니다. 중복 5개를 제외하면 전체 39개 브라우저 검증을 확인한 결과입니다.
 
-검증 증거는 `.local/ux-review/checks.json`, `.local/ux-review/final-e2e-results/`, `.local/ux-review/final-site-results/`, `.local/ux-review/reference-results/`, `.local/ux-review/screenshots/`에 보관합니다. 운영 배포 결과는 확인 후 아래에 기록합니다.
+검증 증거는 `.local/ux-review/checks.json`, `.local/ux-review/final-e2e-results/`, `.local/ux-review/final-site-results/`, `.local/ux-review/reference-results/`, `.local/ux-review/screenshots/`에 보관합니다. 운영 배포 결과는 아래에 기록했습니다.
+
+## 운영 반영 완료
+
+- 배포 소스: `790d5fe`, Worker: `05c7a7a3-1684-44b0-b6ba-ee14a0032b89`. GitHub `codex/phase1`에 반영했습니다.
+- 확인 시각: 2026-10-17T04:35:38.620Z (한국 시간 2026-10-17 13:35). 최종 빌드 성공, 운영 HTML/자산 59개 SHA-256 일치, DB 준비 상태 정상입니다. 관리자 API 익명 요청 5개는 모두 401로 차단됐고 보호 화면은 로그인으로 이동합니다.
+- 운영 자산을 로드해 PC 1440px, 모바일 390px·360px에서 달력/목록과 네이티브 날짜·시간 입력, 화면 안에 유지되는 저장 버튼을 확인했습니다. 선택 일정에서 주간 이미지로 가져와 PNG 1672×941을 출력했습니다. 가로 넘침·실행 오류·CSP 위반이 없습니다.
+- 이 운영 화면 검증에만 별도의 QA 브라우저에서 관리자 GET 응답을 검증 자료로 대체했습니다. 쓰기 요청은 차단했으며 실제 운영 로그인·CRUD 저장을 수행한 결과는 아닙니다. 실제 인증 후 저장과 계정·노래 기능은 격리된 로컬 D1에서 검증했습니다.
+- 이번 변경은 UI와 편집 흐름 보완으로 DB migration이나 운영 데이터 변경은 수행하지 않았습니다. 운영 테스트용 쓰기는 0건입니다.
+- 배포 증거: `.local/ux-review/production/verification.json`, `.local/ux-review/production/screenshots/`, `.local/ux-review/production/{1440,390,360}-events.png`. 캡처의 일정은 검증 예시입니다.
