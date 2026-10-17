@@ -1,5 +1,13 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
+import {
+  ref,
+  reactive,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from "vue";
 import { api } from "../../services/api.js";
 import { useEditorDraft } from "../../services/useEditorDraft.js";
 import { useEditorGuard } from "../../services/editor-guards.js";
@@ -13,6 +21,11 @@ import {
   validateEventPayload,
   isEventDraft,
 } from "../../../shared/schedule/events.js";
+import {
+  eventFormIssue,
+  eventDurationLabel,
+  nextEndDate,
+} from "../../schedule/event-presentation.js";
 import { backupEventsFile } from "../../schedule/events-service.js";
 import Modal from "../Modal.vue";
 import DraftRecovery from "../DraftRecovery.vue";
@@ -21,6 +34,7 @@ const props = defineProps({
   eventId: { type: String, required: true },
   date: { type: String, required: true },
   initial: Object,
+  defaultKind: { type: String, default: "broadcast" },
 });
 const emit = defineEmits(["close", "saved", "deleted"]);
 const isNew = computed(() => props.eventId === "new"),
@@ -33,6 +47,43 @@ const isNew = computed(() => props.eventId === "new"),
   complete = ref(false),
   baseline = ref("");
 const controller = new AbortController();
+const formElement = ref(null),
+  attempted = ref(false),
+  errorElement = ref(null);
+const issue = computed(() => eventFormIssue(input()));
+const duration = computed(() => eventDurationLabel(input()));
+const showIssue = computed(() => attempted.value && issue.value);
+const overnight = computed(
+  () =>
+    form.time_mode === "timed" &&
+    form.start_date === form.end_date &&
+    form.start_time &&
+    form.end_time &&
+    form.end_time <= form.start_time &&
+    nextEndDate(form),
+);
+function fieldAttrs(name) {
+  return {
+    name,
+    "aria-invalid": showIssue.value?.field === name ? "true" : undefined,
+    "aria-describedby":
+      showIssue.value?.field === name ? "event-validation-error" : undefined,
+  };
+}
+watch(form, () => {
+  error.value = "";
+});
+async function focusIssue() {
+  await nextTick();
+  const field = formElement.value?.elements.namedItem(issue.value?.field);
+  field?.focus();
+  field?.scrollIntoView({ block: "nearest" });
+}
+function useNextDay() {
+  const date = nextEndDate(form);
+  if (date) form.end_date = date;
+}
+
 function snapshot() {
   return { form: { ...form }, revision: revision.value };
 }
@@ -66,9 +117,10 @@ async function load() {
   loading.value = true;
   loadError.value = "";
   error.value = "";
+  attempted.value = false;
   try {
     const value = isNew.value
-      ? emptyEvent(props.date)
+      ? { ...emptyEvent(props.date), kind: props.defaultKind }
       : await api("/admin/schedule-events/" + props.eventId, {
           signal: controller.signal,
         });
@@ -81,6 +133,9 @@ async function load() {
     if (err.name !== "AbortError") loadError.value = err.message;
   } finally {
     loading.value = false;
+    await nextTick();
+    if (isNew.value && !props.initial && !loadError.value)
+      formElement.value?.elements.namedItem("title")?.focus();
   }
 }
 function changeStart(value) {
@@ -90,6 +145,11 @@ function changeStart(value) {
 async function save(image = false) {
   if (busy.value) return;
   error.value = "";
+  attempted.value = true;
+  if (issue.value) {
+    await focusIssue();
+    return;
+  }
   let payload;
   try {
     payload = eventInput(validateEventPayload(input()));
@@ -117,6 +177,8 @@ async function save(image = false) {
     emit("saved", saved, image);
   } catch (err) {
     error.value = err.message;
+    await nextTick();
+    errorElement.value?.focus();
   } finally {
     busy.value = false;
   }
@@ -197,142 +259,224 @@ defineExpose({ confirmLeave });
     :title="isNew ? '새 일정 등록' : '일정 수정'"
     :busy="busy"
     wide
+    class="event-editor-modal"
     @close="emit('close')"
-    ><Notice :loading="loading" :error="loadError" @retry="load" />
+  >
+    <Notice
+      :loading="loading"
+      :error="loadError"
+      loading-message="일정을 불러오고 있어요."
+      @retry="load"
+    />
     <form
       v-if="!loading && !loadError"
+      ref="formElement"
       class="schedule-event-form"
+      novalidate
+      :aria-busy="busy"
       @submit.prevent="save()"
     >
-      <DraftRecovery
-        :pending="pending"
-        :error="storageError"
-        @restore="drafts.restore"
-        @discard="drafts.clear"
-      />
-      <fieldset class="editor-fields" :disabled="busy">
-        <label class="field"
-          >일정 제목<input
-            v-model="form.title"
-            maxlength="120"
-            required
-            placeholder="예: 노래 방송 / 게임 합방" /></label
-        ><label class="field"
-          >일정 구분<select v-model="form.kind">
-            <option
-              v-for="kind in EVENT_KINDS"
-              :key="kind.value"
-              :value="kind.value"
+      <div class="event-form-body">
+        <DraftRecovery
+          :pending="pending"
+          :error="storageError"
+          @restore="drafts.restore"
+          @discard="drafts.clear"
+        />
+        <fieldset class="editor-fields" :disabled="busy">
+          <div class="event-basics-grid">
+            <label class="field"
+              >일정 제목<input
+                v-model="form.title"
+                v-bind="fieldAttrs('title')"
+                maxlength="120"
+                required
+                placeholder="예: 노래 방송 / 게임 합방"
+            /></label>
+            <label class="field"
+              >일정 구분<select
+                aria-label="일정 구분"
+                v-model="form.kind"
+                v-bind="fieldAttrs('kind')"
+              >
+                <option
+                  v-for="kind in EVENT_KINDS"
+                  :key="kind.value"
+                  :value="kind.value"
+                >
+                  {{ kind.label }}
+                </option>
+              </select></label
             >
-              {{ kind.label }}
-            </option>
-          </select></label
-        >
-        <fieldset class="event-time-modes">
-          <legend>시간 방식</legend>
-          <label v-for="mode in TIME_MODES" :key="mode.value"
-            ><input
-              v-model="form.time_mode"
-              type="radio"
-              name="timeMode"
-              :value="mode.value"
-            />{{ mode.label }}</label
-          >
-        </fieldset>
-        <div class="event-date-grid">
+          </div>
+          <fieldset class="event-time-modes">
+            <legend>시간 방식</legend>
+            <label
+              v-for="mode in TIME_MODES"
+              :key="mode.value"
+              :class="{ selected: form.time_mode === mode.value }"
+              ><input
+                v-model="form.time_mode"
+                type="radio"
+                name="timeMode"
+                :value="mode.value"
+              />{{ mode.label }}</label
+            >
+          </fieldset>
+          <div class="event-date-grid">
+            <section class="event-endpoint">
+              <h3>시작</h3>
+              <div>
+                <label class="field"
+                  >시작일<input
+                    type="date"
+                    :value="form.start_date"
+                    v-bind="fieldAttrs('start_date')"
+                    :min="EVENT_DATE_MIN"
+                    :max="EVENT_DATE_MAX"
+                    required
+                    @input="changeStart($event.target.value)"
+                /></label>
+                <label v-if="form.time_mode === 'timed'" class="field"
+                  >시작 시간<input
+                    v-model="form.start_time"
+                    v-bind="fieldAttrs('start_time')"
+                    type="time"
+                    step="60"
+                    required
+                /></label>
+              </div>
+            </section>
+            <section class="event-endpoint">
+              <h3>종료</h3>
+              <div>
+                <label class="field"
+                  >종료일<input
+                    v-model="form.end_date"
+                    v-bind="fieldAttrs('end_date')"
+                    type="date"
+                    :min="form.start_date || EVENT_DATE_MIN"
+                    :max="EVENT_DATE_MAX"
+                    required
+                /></label>
+                <label v-if="form.time_mode === 'timed'" class="field"
+                  >종료 시간<input
+                    v-model="form.end_time"
+                    v-bind="fieldAttrs('end_time')"
+                    type="time"
+                    step="60"
+                    required
+                /></label>
+              </div>
+            </section>
+          </div>
+          <div class="event-duration-summary" aria-live="polite">
+            <strong>{{
+              duration ? "총 " + duration : "시작·종료 일시를 확인해주세요"
+            }}</strong
+            ><span
+              >한국 시간 기준{{
+                form.time_mode === "timed" ? "" : " · 종료일까지 포함"
+              }}</span
+            >
+          </div>
+          <div v-if="overnight" class="event-overnight-help">
+            <p>자정을 넘기는 일정인가요? 종료 날짜를 다음 날로 선택해주세요.</p>
+            <button type="button" class="text-button" @click="useNextDay">
+              종료일을 다음 날로
+            </button>
+          </div>
+          <p class="form-hint">
+            {{
+              form.time_mode === "timed"
+                ? "자정을 넘기면 종료일도 바꿔주세요."
+                : "종일·시간 미정 일정은 종료일까지 표시합니다."
+            }}
+            기간은 최대 366일입니다.
+          </p>
           <label class="field"
-            >시작일<input
-              type="date"
-              :value="form.start_date"
-              :min="EVENT_DATE_MIN"
-              :max="EVENT_DATE_MAX"
-              required
-              @input="changeStart($event.target.value)" /></label
-          ><label class="field"
-            >종료일<input
-              v-model="form.end_date"
-              type="date"
-              :min="form.start_date || EVENT_DATE_MIN"
-              :max="EVENT_DATE_MAX"
-              required /></label
-          ><label v-if="form.time_mode === 'timed'" class="field"
-            >시작 시간<input
-              v-model="form.start_time"
-              type="time"
-              step="60"
-              required /></label
-          ><label v-if="form.time_mode === 'timed'" class="field"
-            >종료 시간<input
-              v-model="form.end_time"
-              type="time"
-              step="60"
-              required
-          /></label>
-        </div>
-        <p class="form-hint">
-          한국 시간 기준 ·
-          {{
-            form.time_mode === "timed"
-              ? "자정을 넘기는 일정은 종료일을 다음 날짜로 선택하세요."
-              : "종료일까지 포함합니다."
-          }}
-          기간은 최대 366일입니다.
+            >일정 메모 <span class="event-optional">선택 · 관리자끼리 공유</span
+            ><textarea
+              v-model="form.description"
+              v-bind="fieldAttrs('description')"
+              rows="3"
+              maxlength="2000"
+              placeholder="이 일정에 필요한 안내를 적어주세요."
+            />
+          </label>
+        </fieldset>
+        <details class="event-editor-tools">
+          <summary>백업{{ isNew ? "" : "·다시 불러오기·삭제" }}</summary>
+          <div class="event-dialog-secondary">
+            <button
+              class="text-button"
+              type="button"
+              :disabled="busy"
+              @click="backup"
+            >
+              현재 입력 백업
+            </button>
+            <button
+              v-if="!isNew"
+              class="text-button"
+              type="button"
+              :disabled="busy"
+              @click="reload"
+            >
+              저장된 일정 다시 불러오기
+            </button>
+            <button
+              v-if="!isNew"
+              class="text-button event-delete-action"
+              type="button"
+              :disabled="busy"
+              @click="remove"
+            >
+              이 일정 삭제
+            </button>
+          </div>
+        </details>
+      </div>
+      <div class="event-form-footer">
+        <p
+          v-if="showIssue"
+          id="event-validation-error"
+          class="form-error"
+          role="alert"
+        >
+          {{ showIssue.message }}
         </p>
-        <label class="field"
-          >일정 메모<textarea
-            v-model="form.description"
-            rows="3"
-            maxlength="2000"
-            placeholder="이 일정에 필요한 안내를 적어주세요."
-          />
-        </label>
-      </fieldset>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-      <div class="event-dialog-secondary">
-        <button
-          v-if="!isNew"
-          class="text-button"
-          type="button"
-          :disabled="busy"
-          @click="remove"
+        <p
+          v-if="error"
+          ref="errorElement"
+          class="form-error"
+          role="alert"
+          tabindex="-1"
         >
-          이 일정 삭제</button
-        ><button
-          class="text-button"
-          type="button"
-          :disabled="busy"
-          @click="backup"
-        >
-          현재 입력 백업</button
-        ><button
-          v-if="!isNew"
-          class="text-button"
-          type="button"
-          :disabled="busy"
-          @click="reload"
-        >
-          저장된 일정 다시 불러오기
-        </button>
+          {{ error }}
+        </p>
+        <div class="modal-actions">
+          <button
+            class="button secondary"
+            type="button"
+            :disabled="busy"
+            @click="emit('close')"
+          >
+            취소
+          </button>
+          <button
+            class="button secondary event-save-image"
+            type="button"
+            :disabled="busy"
+            @click="save(true)"
+          >
+            저장하고 이미지 만들기
+          </button>
+          <button class="button primary" :disabled="busy">
+            {{ busy ? "저장 중…" : "일정 저장" }}
+          </button>
+        </div>
       </div>
-      <div class="modal-actions">
-        <button
-          class="button secondary"
-          type="button"
-          :disabled="busy"
-          @click="emit('close')"
-        >
-          취소</button
-        ><button
-          class="button secondary"
-          type="button"
-          :disabled="busy"
-          @click="save(true)"
-        >
-          저장하고 이미지 만들기</button
-        ><button class="button primary" :disabled="busy">
-          {{ busy ? "저장 중…" : "일정 저장" }}
-        </button>
-      </div>
-    </form></Modal
-  >
+    </form>
+  </Modal>
 </template>

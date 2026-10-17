@@ -268,13 +268,17 @@ test("conflicting saves preserve the draft and unsaved navigation can be cancell
   await expect(
     page.getByLabel("월요일 방송 내용", { exact: true }),
   ).toHaveValue("유지할 초안");
-  page.once("dialog", (d) => d.dismiss());
-  await page.getByRole("button", { name: "다음 주", exact: true }).click();
+  await Promise.all([
+    page.waitForEvent("dialog").then((d) => d.dismiss()),
+    page.getByRole("button", { name: "다음 주", exact: true }).click(),
+  ]);
   await expect(page).toHaveURL(/week=2026-10-12$/);
-  page.once("dialog", (d) => d.accept());
-  await page
-    .getByRole("button", { name: "저장된 일정 불러오기", exact: true })
-    .click();
+  await Promise.all([
+    page.waitForEvent("dialog").then((d) => d.accept()),
+    page
+      .getByRole("button", { name: "저장된 일정 불러오기", exact: true })
+      .click(),
+  ]);
   await expect(
     page.getByLabel("월요일 방송 내용", { exact: true }),
   ).toHaveValue("다른 관리자의 저장");

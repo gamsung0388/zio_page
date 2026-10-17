@@ -20,6 +20,10 @@ import {
   eventPeriodLabel,
   kstInstant,
 } from "../../shared/schedule/events.js";
+import {
+  eventDateLabel,
+  eventRangeLabel,
+} from "../schedule/event-presentation.js";
 import { useKstToday } from "../schedule/useKstToday.js";
 import {
   fetchEvents,
@@ -59,7 +63,6 @@ const events = ref([]),
   error = ref(""),
   transfer = ref(false),
   actionError = ref(""),
-  selectedDay = ref(""),
   dialog = ref(null),
   importData = ref(null),
   importIndex = ref(0),
@@ -80,10 +83,49 @@ const inMonth = computed(() =>
       item.ends_at > kstInstant(month.value + "-01"),
   ),
 );
+const selectedDay = computed(() =>
+  isEventDate(route.query.day) && dates.value.includes(route.query.day)
+    ? route.query.day
+    : "",
+);
+const newDate = computed(
+  () =>
+    selectedDay.value ||
+    (today.value.startsWith(month.value) ? today.value : month.value + "-01"),
+);
 const listItems = computed(() =>
   selectedDay.value
     ? events.value.filter((item) => eventOccursOn(item, selectedDay.value))
     : inMonth.value,
+);
+const dayGroups = computed(() => {
+  const groups = new Map();
+  for (const event of listItems.value) {
+    const date =
+      selectedDay.value ||
+      (event.start_date < month.value + "-01"
+        ? month.value + "-01"
+        : event.start_date);
+    if (!groups.has(date)) groups.set(date, []);
+    groups.get(date).push(event);
+  }
+  return [...groups]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, items]) => ({ date, items }));
+});
+const eventsByDay = computed(
+  () =>
+    new Map(
+      dates.value.map((date) => [
+        date,
+        events.value.filter((item) => eventOccursOn(item, date)),
+      ]),
+    ),
+);
+const resultCount = computed(() =>
+  selectedDay.value
+    ? listItems.value.length + "개 일정 · 선택한 날짜"
+    : inMonth.value.length + "개 일정 · 한국 시간",
 );
 let controller;
 async function load() {
@@ -107,7 +149,6 @@ async function load() {
 watch(
   [month, kind],
   () => {
-    selectedDay.value = "";
     load();
   },
   { immediate: true },
@@ -116,19 +157,22 @@ watch(editId, (value) => {
   if (!value) pendingImport.value = null;
 });
 function dayEvents(date) {
-  return events.value.filter((item) => eventOccursOn(item, date));
+  return eventsByDay.value.get(date) || [];
 }
 function kindLabel(value) {
   return EVENT_KINDS.find((kind) => kind.value === value)?.label || "기타";
 }
 async function changeQuery(query, input, field) {
   try {
-    await router.push({ query: { ...route.query, ...query } });
+    const next = { ...route.query, ...query };
+    if (Object.hasOwn(query, "month") || Object.hasOwn(query, "kind"))
+      next.day = undefined;
+    await router.push({ query: next });
   } finally {
     if (input) input.value = field === "month" ? month.value : kind.value;
   }
 }
-function open(id = "new", date = today.value) {
+function open(id = "new", date = newDate.value) {
   router.push({
     query: {
       ...route.query,
@@ -144,7 +188,13 @@ function close() {
   });
 }
 async function saved(event, image) {
-  notify("일정을 저장했습니다.");
+  const resetKind = Boolean(kind.value && kind.value !== event.kind);
+  const keepDay = !selectedDay.value || eventOccursOn(event, selectedDay.value);
+  notify(
+    resetKind
+      ? "일정을 저장했습니다. 저장한 일정을 볼 수 있도록 전체 구분으로 바꿨어요."
+      : "일정을 저장했습니다.",
+  );
   if (image)
     await router.push({
       path: "/admin/schedule/image",
@@ -159,11 +209,13 @@ async function saved(event, image) {
       query: {
         ...route.query,
         month: overlaps ? previousMonth : event.start_date.slice(0, 7),
+        kind: resetKind ? undefined : route.query.kind,
+        day: overlaps && keepDay ? route.query.day : undefined,
         edit: undefined,
         date: undefined,
       },
     });
-    if (month.value === previousMonth) await load();
+    if (month.value === previousMonth && !resetKind) await load();
   }
 }
 async function deleted() {
@@ -182,8 +234,7 @@ function leave(to, from) {
 onBeforeRouteLeave(leave);
 onBeforeRouteUpdate(leave);
 function more(date) {
-  selectedDay.value = date;
-  changeQuery({ view: "list" });
+  changeQuery({ view: "list", day: date });
 }
 async function backup(all) {
   if (transfer.value) return;
@@ -250,7 +301,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <ScheduleNav />
-    <section class="card calendar-panel">
+    <section class="card calendar-panel" :aria-busy="loading">
       <div class="calendar-toolbar">
         <h2>{{ month.replace("-", "년 ") }}월</h2>
         <div>
@@ -295,10 +346,7 @@ onBeforeUnmount(() => {
           <button
             class="btn btn-outline"
             :aria-pressed="view === 'calendar'"
-            @click="
-              selectedDay = '';
-              changeQuery({ view: 'calendar' });
-            "
+            @click="changeQuery({ view: 'calendar', day: undefined })"
           >
             달력 보기</button
           ><button
@@ -312,6 +360,7 @@ onBeforeUnmount(() => {
         <label class="event-kind-filter"
           >일정 구분<select
             :value="kind"
+            aria-label="일정 구분"
             @change="
               changeQuery(
                 { kind: $event.target.value || undefined },
@@ -329,9 +378,23 @@ onBeforeUnmount(() => {
               {{ item.label }}
             </option>
           </select></label
-        ><span>{{ inMonth.length }}개 일정 · 한국 시간</span>
+        ><button
+          v-if="kind"
+          class="text-button event-filter-clear"
+          @click="changeQuery({ kind: undefined })"
+        >
+          구분 해제
+        </button>
+        <span role="status" aria-live="polite">{{
+          loading ? "일정을 불러오는 중…" : resultCount
+        }}</span>
       </div>
-      <Notice :loading="loading" :error="error" @retry="load" />
+      <Notice
+        :loading="loading"
+        :error="error"
+        loading-message="일정을 불러오고 있어요."
+        @retry="load"
+      />
       <template v-if="!loading && !error"
         ><div
           v-if="view === 'calendar'"
@@ -342,6 +405,7 @@ onBeforeUnmount(() => {
             v-for="day in ['월', '화', '수', '목', '금', '토', '일']"
             :key="day"
             class="calendar-weekday"
+            :class="{ 'is-weekend': day === '토' || day === '일' }"
           >
             {{ day }}
           </div>
@@ -352,11 +416,15 @@ onBeforeUnmount(() => {
             :class="{
               'other-month': !date.startsWith(month),
               'is-today': date === today,
+              'is-weekend': [0, 6].includes(
+                new Date(date + 'T00:00:00Z').getUTCDay(),
+              ),
             }"
           >
             <button
               class="event-date-add"
               :aria-label="date + ' 새 일정'"
+              :aria-current="date === today ? 'date' : undefined"
               :disabled="!isEventDate(date)"
               @click="open('new', date)"
             >
@@ -369,6 +437,13 @@ onBeforeUnmount(() => {
               class="event-chip"
               :class="'event-kind-' + event.kind"
               :aria-label="event.title + ' 일정 수정'"
+              :title="
+                event.title +
+                ' · ' +
+                kindLabel(event.kind) +
+                ' · ' +
+                eventRangeLabel(event)
+              "
               @click="open(event.id)"
             >
               <small>{{ eventTimeLabel(event, date) }}</small
@@ -389,46 +464,89 @@ onBeforeUnmount(() => {
         </div>
         <div v-else class="schedule-event-list" aria-label="개별 일정 목록">
           <div v-if="selectedDay" class="event-day-filter">
-            {{ selectedDay }} 일정<button
+            <strong>{{ eventDateLabel(selectedDay) }} 일정</strong>
+            <button
               class="text-button"
-              @click="selectedDay = ''"
+              @click="changeQuery({ day: undefined })"
             >
               월 전체 보기
             </button>
           </div>
-          <p v-if="!listItems.length" class="schedule-event-empty">
-            등록된 일정이 없어요. 새 일정 등록으로 추가해주세요.
-          </p>
-          <article
-            v-for="event in listItems"
-            :key="event.id"
-            class="schedule-event-card"
-          >
-            <div>
-              <span
-                class="event-kind-badge"
-                :class="'event-kind-' + event.kind"
-                >{{ kindLabel(event.kind) }}</span
-              >
-              <h3>{{ event.title }}</h3>
-              <p>{{ eventPeriodLabel(event) }}</p>
-              <small>{{
-                event.time_mode === "timed"
-                  ? "시간 지정"
-                  : eventTimeLabel(event)
-              }}</small>
-              <p v-if="event.description" class="event-description">
-                {{ event.description }}
-              </p>
-            </div>
-            <button
-              class="btn btn-outline"
-              :aria-label="event.title + ' 일정 수정'"
-              @click="open(event.id)"
-            >
-              수정
+          <div v-if="!listItems.length" class="schedule-event-empty">
+            <h3>
+              {{
+                kind
+                  ? kindLabel(kind) + " 일정이 없어요"
+                  : "등록된 일정이 없어요"
+              }}
+            </h3>
+            <p>
+              {{
+                selectedDay
+                  ? eventDateLabel(selectedDay)
+                  : month.replace("-", "년 ") + "월"
+              }}에 필요한 일정을 추가해보세요.
+            </p>
+            <button class="btn btn-primary" @click="open()">
+              이 날짜에 일정 등록
             </button>
-          </article>
+            <button
+              v-if="kind"
+              class="text-button"
+              @click="changeQuery({ kind: undefined })"
+            >
+              전체 구분 보기
+            </button>
+          </div>
+          <section
+            v-for="group in dayGroups"
+            :key="group.date"
+            class="event-date-group"
+            :aria-label="eventDateLabel(group.date) + ' 일정'"
+          >
+            <div class="event-group-heading">
+              <h3>
+                <time :datetime="group.date">{{
+                  eventDateLabel(group.date)
+                }}</time
+                ><small v-if="group.date === today">오늘</small>
+              </h3>
+              <span>{{ group.items.length }}개</span>
+            </div>
+            <article
+              v-for="event in group.items"
+              :key="event.id"
+              class="schedule-event-card"
+            >
+              <div>
+                <div class="event-card-labels">
+                  <span
+                    class="event-kind-badge"
+                    :class="'event-kind-' + event.kind"
+                    >{{ kindLabel(event.kind) }}</span
+                  ><span
+                    v-if="event.start_date < group.date"
+                    class="event-continuing"
+                    >이전 날짜부터 이어지는 일정</span
+                  >
+                </div>
+                <h4>{{ event.title }}</h4>
+                <p class="event-readable-period">
+                  {{ eventRangeLabel(event) }}
+                </p>
+                <p v-if="event.description" class="event-description">
+                  {{ event.description }}
+                </p>
+              </div>
+              <button
+                class="btn btn-outline"
+                :aria-label="event.title + ' 일정 수정'"
+                @click="open(event.id)"
+              >
+                수정
+              </button>
+            </article>
+          </section>
         </div></template
       >
     </section>
@@ -476,6 +594,7 @@ onBeforeUnmount(() => {
       :event-id="editId"
       :date="initialDate"
       :initial="pendingImport"
+      :default-kind="kind || 'broadcast'"
       @close="close"
       @saved="saved"
       @deleted="deleted"

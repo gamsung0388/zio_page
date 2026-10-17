@@ -174,3 +174,7 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 추가 실행 migration: `0005_admin_schedule_events.sql`. 기존 주간 메모·노래·관리자 테이블은 변경하지 않습니다. 운영 DB 사전 백업 후 원격 migration과 배포를 적용합니다. [입력 규칙·API·검증·배포 기록](docs/16_INDIVIDUAL_SCHEDULE_EVENTS.md).
 
 2026-10-17 운영 반영 완료: 소스 `39aafac`, Worker `a1085d64-147e-454e-943e-37233da3abba`. 총 106개 검증을 통과했고 운영 자산 59개 일치·DB 연결·관리자 API 접근 제한을 확인했습니다. 운영 DB 사전 백업 후 migration 0005를 적용했으며 기존 관리자·노래·주간 메모를 보존했습니다. GitHub `codex/phase1`에 반영했습니다. [일정 관리 열기](https://zio-home.ryan9320.workers.dev/admin/schedule) · [검증과 배포 기록](docs/16_INDIVIDUAL_SCHEDULE_EVENTS.md).
+
+## 일정 관리 사용성 개선 (2026-10-17)
+
+PC·모바일 일정 입력의 시작/종료 묶음과 총 기간, 고정 저장 버튼, 자정 종료 안내를 제공합니다. 새 일정은 보고 있는 날짜·월과 구분을 기준으로 열립니다. 날짜별 목록·요일·진행 중 표시, 필터 해제와 빈 화면 등록 버튼을 정리했고 저장한 일정이 필터에 가려지면 전체 구분으로 바꿔 보여줍니다. 이미지 편집의 저장은 주간 이미지 메모에 반영됩니다. 개별 일정은 일정 달력에서 관리합니다. [분석·수정·검증 기록](docs/17_SCHEDULE_UX.md).

@@ -390,6 +390,13 @@ function applyImport() {
       </div>
     </div>
     <ScheduleNav />
+    <p class="schedule-context-note">
+      이 화면의 저장은 주간 이미지 메모에 반영됩니다. 개별 일정은
+      <RouterLink
+        :to="{ path: '/admin/schedule', query: { month: week.slice(0, 7) } }"
+        >일정 달력으로 이동</RouterLink
+      >해서 관리하세요.
+    </p>
     <div class="schedule-week-picker card">
       <button
         class="btn btn-outline"
@@ -425,7 +432,12 @@ function applyImport() {
         ></span
       >
     </div>
-    <Notice :loading="loading" :error="error" @retry="editor.load" />
+    <Notice
+      loading-message="일정을 불러오고 있어요."
+      :loading="loading"
+      :error="error"
+      @retry="editor.load"
+    />
     <template v-if="!loading && !error">
       <DraftRecovery
         :pending="pending"
@@ -624,7 +636,7 @@ function applyImport() {
           />
           <p class="schedule-help">
             PNG·JPEG · 1672 × 941px. 글자가 넘치면 다운로드를 멈춰요. 이미지를
-            내려받은 뒤에도 달력에 반영하려면 일정 저장을 눌러주세요.
+            내려받은 뒤 다음 편집에서도 유지하려면 일정 저장을 눌러주세요.
           </p>
         </section>
       </div>
@@ -699,6 +711,7 @@ function applyImport() {
       :busy="eventLoading"
       @close="eventImportOpen = false"
       ><Notice
+        loading-message="일정을 불러오고 있어요."
         :loading="eventLoading"
         :error="eventError"
         @retry="openEvents"

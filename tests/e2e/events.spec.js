@@ -105,6 +105,7 @@ test("time controls and independent events support two schedules on one day and 
     .getByRole("button", { name: "노래 방송 A 일정 수정", exact: true })
     .click();
   dialog = page.getByRole("dialog", { name: "일정 수정", exact: true });
+  await dialog.getByText("백업·다시 불러오기·삭제", { exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "이 일정 삭제", exact: true })
@@ -184,6 +185,7 @@ test("stale per-event save shows a conflict and preserves the editor until expli
   await expect(dialog.getByLabel("일정 제목", { exact: true })).toHaveValue(
     "내 편집 초안",
   );
+  await dialog.getByText("백업·다시 불러오기·삭제", { exact: true }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "저장된 일정 다시 불러오기", exact: true })
@@ -435,4 +437,163 @@ test("saving outside the current month follows the event and save-to-image opens
   await expect(
     page.getByLabel("화요일 방송 내용", { exact: true }),
   ).toHaveValue("이미지로 가져올 일정");
+});
+
+test("mobile form keeps save actions visible and both actions focus invalid input before an overnight save", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto(base + "&edit=new&date=2027-01-04");
+  const dialog = page.getByRole("dialog", {
+    name: "새 일정 등록",
+    exact: true,
+  });
+  const title = dialog.getByLabel("일정 제목", { exact: true });
+  await expect(title).toBeFocused();
+  const save = dialog.getByRole("button", { name: "일정 저장", exact: true });
+  const inside = async (locator) =>
+    locator.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight;
+    });
+  expect(await inside(save)).toBe(true);
+  await dialog
+    .getByRole("button", { name: "저장하고 이미지 만들기", exact: true })
+    .click();
+  await expect(title).toBeFocused();
+  await expect(title).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByRole("alert")).toContainText("일정 제목");
+  await title.fill("밤샘 노래 방송");
+  await dialog.getByLabel("시작 시간", { exact: true }).fill("23:00");
+  await dialog.getByLabel("종료 시간", { exact: true }).fill("01:00");
+  await save.click();
+  await expect(dialog.getByLabel("종료 시간", { exact: true })).toBeFocused();
+  await dialog
+    .getByRole("button", { name: "종료일을 다음 날로", exact: true })
+    .click();
+  await expect(dialog.getByLabel("종료일", { exact: true })).toHaveValue(
+    "2027-01-05",
+  );
+  await expect(dialog.getByRole("alert")).toHaveCount(0);
+  await expect(dialog.locator(".event-duration-summary")).toContainText(
+    "총 2시간",
+  );
+  await dialog.locator(".event-form-body").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  expect(await inside(save)).toBe(true);
+  await dialog
+    .getByRole("textbox", { name: /일정 메모/ })
+    .fill("메모 ".repeat(150));
+  expect(await inside(save)).toBe(true);
+  const saved = await saveUi(page, dialog);
+  expect(saved.end_date).toBe("2027-01-05");
+});
+
+test("new event uses the viewed month and category and a changed category remains visible after save", async ({
+  page,
+}) => {
+  await page.goto("/admin/schedule?month=2027-03&kind=personal&view=list");
+  await expect(
+    page.getByRole("heading", { name: "개인 일정이 없어요", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "이 날짜에 일정 등록", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "새 일정 등록",
+    exact: true,
+  });
+  await expect(dialog.getByLabel("시작일", { exact: true })).toHaveValue(
+    "2027-03-01",
+  );
+  await expect(dialog.getByLabel("일정 구분", { exact: true })).toHaveValue(
+    "personal",
+  );
+  await dialog
+    .getByLabel("일정 제목", { exact: true })
+    .fill("필터에 가려지지 않는 방송");
+  await dialog
+    .getByLabel("일정 구분", { exact: true })
+    .selectOption("broadcast");
+  await saveUi(page, dialog);
+  await expect(
+    page.getByRole("button", {
+      name: "필터에 가려지지 않는 방송 일정 수정",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("kind")).toBe(false);
+  await expect(
+    page.getByRole("status").filter({ hasText: "전체 구분으로" }),
+  ).toBeVisible();
+});
+
+test("day drilldown survives refresh and grouped list labels ongoing periods without duplicating events", async ({
+  page,
+}) => {
+  for (let index = 0; index < 4; index++)
+    await seed(page, { title: "날짜별 방송 " + index });
+  await seed(page, {
+    title: "지난달부터 진행",
+    start_date: "2026-12-31",
+    end_date: "2027-01-02",
+  });
+  await page.goto(base);
+  const day = page.locator(".event-calendar-day").filter({
+    has: page.getByRole("button", {
+      name: "2027-01-04 새 일정",
+      exact: true,
+    }),
+  });
+  await day.getByRole("button", { name: "＋1개 더 보기", exact: true }).click();
+  await expect(page).toHaveURL(/day=2027-01-04/);
+  await expect(page.locator(".schedule-event-card")).toHaveCount(4);
+  await page.reload();
+  await expect(page.locator(".schedule-event-card")).toHaveCount(4);
+  await expect(page.locator(".event-day-filter")).toContainText("1월 4일");
+  await page.getByRole("button", { name: "월 전체 보기", exact: true }).click();
+  await expect(page.locator(".schedule-event-card")).toHaveCount(5);
+  await expect(page.locator(".event-date-group")).toHaveCount(2);
+  await expect(page.locator(".event-date-group").first()).toContainText(
+    "이전 날짜부터 이어지는 일정",
+  );
+  await page.getByLabel("일정 구분", { exact: true }).selectOption("off");
+  await expect(
+    page.getByRole("heading", { name: "휴방 일정이 없어요", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "전체 구분 보기", exact: true })
+    .click();
+  await expect(page.locator(".schedule-event-card")).toHaveCount(5);
+});
+
+test("keyboard Escape preserves edited inputs when cancelled and restores focus after closing", async ({
+  page,
+}) => {
+  await page.goto(base);
+  const trigger = page.getByRole("button", {
+    name: "새 일정 등록",
+    exact: true,
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", {
+    name: "새 일정 등록",
+    exact: true,
+  });
+  const title = dialog.getByLabel("일정 제목", { exact: true });
+  await expect(title).toBeFocused();
+  await title.fill("키보드 편집");
+  await Promise.all([
+    page.waitForEvent("dialog").then((prompt) => prompt.dismiss()),
+    page.keyboard.press("Escape"),
+  ]);
+  await expect(dialog).toBeVisible();
+  await expect(title).toHaveValue("키보드 편집");
+  await Promise.all([
+    page.waitForEvent("dialog").then((prompt) => prompt.accept()),
+    page.keyboard.press("Escape"),
+  ]);
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });

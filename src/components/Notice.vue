@@ -5,6 +5,7 @@ defineProps({
   empty: Boolean,
   title: String,
   message: String,
+  loadingMessage: { type: String, default: "노래를 불러오고 있어요." },
 });
 defineEmits(["retry"]);
 import Icon from "./Icon.vue";
@@ -20,7 +21,7 @@ import Icon from "./Icon.vue";
   </div>
   <div v-else-if="loading" class="notice" role="status">
     <span class="spinner"></span>
-    <p>노래를 불러오고 있어요.</p>
+    <p>{{ loadingMessage }}</p>
   </div>
   <div v-else-if="empty" class="notice empty-notice">
     <span class="empty-icon"><Icon name="music" :size="28" /></span>

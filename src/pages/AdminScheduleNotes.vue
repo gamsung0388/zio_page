@@ -171,8 +171,8 @@ async function save(image = false, clear = false) {
     });
     original.value = JSON.stringify(draft.value);
     drafts.clear();
-    selected.value = "";
     await router.replace({ query: { ...route.query, day: undefined } });
+    selected.value = "";
     notify(clear ? "이 날짜의 일정을 비웠습니다." : "일정을 저장했습니다.");
     if (image)
       await router.push({
@@ -277,7 +277,12 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
-      <Notice :loading="loading" :error="error" @retry="load" />
+      <Notice
+        loading-message="일정을 불러오고 있어요."
+        :loading="loading"
+        :error="error"
+        @retry="load"
+      />
       <div
         v-if="!loading && !error"
         class="calendar-grid"
@@ -319,7 +324,11 @@ onBeforeUnmount(() => {
       :title="selected + ' 일정'"
       :busy="busy"
       @close="close"
-      ><Notice :loading="dayLoading" @retry="open(selected)" />
+      ><Notice
+        loading-message="일정을 불러오고 있어요."
+        :loading="dayLoading"
+        @retry="open(selected)"
+      />
       <p v-if="dayError" class="form-error" role="alert">{{ dayError }}</p>
       <form v-if="week && !dayLoading" @submit.prevent="save()">
         <DraftRecovery

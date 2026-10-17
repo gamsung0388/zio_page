@@ -1061,3 +1061,478 @@
     width: 100%;
   }
 }
+
+/* Individual schedule UX: preserve controls while the form body scrolls. */
+.modal.event-editor-modal[open] {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  max-height: calc(100dvh - 32px);
+  background: #fff;
+}
+.event-editor-modal .modal-heading {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 18px 22px;
+  background: #fff;
+}
+.event-editor-modal .modal-heading .icon-button {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.event-editor-modal .schedule-event-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.event-form-body {
+  padding: 20px 22px 12px;
+  overflow: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+  scroll-padding: 16px;
+}
+.event-basics-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 16px;
+}
+.event-editor-modal .field {
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.event-editor-modal .field input,
+.event-editor-modal .field select,
+.event-editor-modal .field textarea {
+  font-size: 16px;
+}
+.event-editor-modal .field [aria-invalid="true"] {
+  border-color: #b6453f;
+  background: #fff9f8;
+  box-shadow: 0 0 0 1px #b6453f;
+}
+.event-editor-modal .event-time-modes {
+  padding: 8px;
+  margin: 0 0 16px;
+  gap: 4px;
+  border: 1px solid #dbe5d5;
+  background: #f7f8f4;
+}
+.event-time-modes label {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 7px;
+}
+.event-time-modes label.selected {
+  background: #fff;
+  color: #113726;
+  box-shadow: 0 1px 4px #11372619;
+}
+.event-endpoint {
+  padding: 14px;
+  border: 1px solid #dfe7dd;
+  border-radius: 10px;
+  background: #fbfcfa;
+  min-width: 0;
+}
+.event-endpoint h3 {
+  font-size: 14px;
+  color: #113726;
+  margin: 0 0 12px;
+}
+.event-endpoint .field:last-child {
+  margin-bottom: 0;
+}
+.event-editor-modal .event-date-grid {
+  gap: 12px;
+}
+.event-editor-modal .event-date-grid input {
+  padding: 10px;
+}
+.event-duration-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  color: #113726;
+}
+.event-duration-summary strong {
+  font-size: 14px;
+}
+.event-duration-summary span,
+.event-optional {
+  font-size: 12px;
+  font-weight: 400;
+  color: #54694f;
+}
+.event-optional {
+  margin-left: 6px;
+}
+.event-overnight-help {
+  padding: 12px;
+  background: #fff7e8;
+  border: 1px solid #ecd5ac;
+  border-radius: 9px;
+  margin-bottom: 12px;
+}
+.event-overnight-help p {
+  font-size: 13px;
+  color: #74551b;
+  margin: 0 0 4px;
+  line-height: 1.6;
+}
+.event-overnight-help .text-button {
+  min-height: 44px;
+}
+.event-editor-tools {
+  border-top: 1px solid #e5eae3;
+  padding-top: 4px;
+}
+.event-editor-tools summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #52664e;
+}
+.event-editor-tools .event-dialog-secondary {
+  margin: 0 0 8px;
+  gap: 4px 16px;
+}
+.event-editor-tools .text-button {
+  font-size: 13px;
+  min-height: 44px;
+  color: #315c3c;
+  text-align: left;
+}
+.event-editor-tools .event-delete-action {
+  color: #a33e35;
+}
+.event-form-footer {
+  flex-shrink: 0;
+  padding: 12px 22px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid #dfe7dd;
+  background: #fff;
+  box-shadow: 0 -4px 14px #11372608;
+}
+.event-form-footer .modal-actions {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.event-editor-modal .event-form-footer .form-error {
+  font-size: 13px;
+  margin: 0 0 10px;
+  max-height: 20dvh;
+  overflow: auto;
+}
+.event-calendar-page .event-view-switch {
+  gap: 4px;
+  padding: 4px;
+  background: #eef3e9;
+  border-radius: 10px;
+}
+.event-calendar-page .event-view-switch .btn {
+  min-height: 44px;
+  background: transparent;
+  border-color: transparent;
+  color: #31543a;
+  transition: none;
+}
+.event-calendar-page .event-view-switch .btn[aria-pressed="true"] {
+  background: #113726;
+  color: #fff;
+  box-shadow: 0 1px 4px #11372619;
+}
+.event-calendar-page .event-view-switch .btn:hover {
+  transform: none;
+}
+.event-calendar-page .event-kind-filter select {
+  min-height: 44px;
+  font-size: 14px;
+}
+.event-calendar-page .event-filter-clear {
+  min-height: 44px;
+  font-size: 13px;
+}
+.event-calendar-page .event-view-toolbar > span {
+  font-size: 13px;
+  color: #50634a;
+}
+.event-calendar-page .event-date-add {
+  min-height: 36px;
+  font-size: 13px;
+}
+.event-calendar-page .event-more {
+  min-height: 36px;
+  font-size: 12px;
+}
+.event-calendar-page .calendar-weekday.is-weekend {
+  color: #87504a;
+}
+.event-calendar-page .event-calendar-day.is-weekend .event-date-add {
+  color: #87504a;
+}
+.event-date-group {
+  margin-top: 22px;
+}
+.event-group-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid #dfe7dd;
+  color: #113726;
+}
+.event-group-heading h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 16px;
+}
+.event-group-heading h3 small {
+  padding: 3px 6px;
+  background: #e3f3d7;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.event-group-heading > span {
+  font-size: 13px;
+  color: #586e50;
+}
+.event-calendar-page .schedule-event-card {
+  margin: 10px 0;
+}
+.event-calendar-page .schedule-event-card h4 {
+  font-size: 18px;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.event-calendar-page .schedule-event-card .event-readable-period {
+  font-size: 14px;
+  color: #36563c;
+  line-height: 1.65;
+}
+.event-calendar-page .schedule-event-card .event-description {
+  font-size: 14px;
+  color: #53664e;
+}
+.event-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.event-calendar-page .event-kind-badge {
+  font-size: 12px;
+}
+.event-continuing {
+  font-size: 12px;
+  color: #52694b;
+}
+.event-calendar-page .schedule-event-card .btn {
+  min-height: 44px;
+}
+.event-calendar-page .event-day-filter {
+  padding: 12px;
+  background: #f1f7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+.event-day-filter .text-button {
+  min-height: 44px;
+}
+.event-calendar-page .schedule-event-empty {
+  padding: 32px 8px;
+}
+.schedule-event-empty h3 {
+  font-size: 18px;
+  color: #264c33;
+  margin-bottom: 10px;
+}
+.schedule-event-empty p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+}
+.schedule-event-empty .text-button {
+  display: block;
+  margin: 10px auto 0;
+  min-height: 44px;
+  font-size: 14px;
+}
+.schedule-context-note {
+  padding: 12px 16px;
+  background: #eef5e8;
+  border: 1px solid #dce9d2;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #415c39;
+  line-height: 1.7;
+  margin: -6px 0 20px;
+}
+.schedule-context-note a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.schedule-page :is(button, a, input, select, textarea, summary):focus-visible,
+.event-editor-modal
+  :is(button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #527f32;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .event-editor-modal .modal-heading {
+    padding: 10px 16px;
+  }
+  .event-form-body {
+    padding: 16px 16px 8px;
+  }
+  .event-form-footer {
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  }
+  .event-basics-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .event-editor-modal .event-time-modes {
+    gap: 0;
+    flex-wrap: nowrap;
+  }
+  .event-editor-modal .event-time-modes label {
+    padding: 0 8px;
+    gap: 5px;
+    font-size: 13px;
+    flex: 1;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .event-editor-modal .event-date-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .event-endpoint {
+    padding: 12px;
+  }
+  .event-endpoint > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .event-endpoint > div:not(:has(input[type="time"])) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .event-endpoint .field {
+    font-size: 13px;
+    margin-bottom: 0;
+  }
+  .event-editor-modal .event-date-grid input {
+    padding: 9px 6px;
+    font-size: 16px;
+  }
+  .event-endpoint h3 {
+    margin-bottom: 10px;
+  }
+  .event-duration-summary {
+    gap: 6px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .event-editor-modal .event-form-footer .modal-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 8px;
+  }
+  .event-editor-modal .event-form-footer .button {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px;
+  }
+  .event-editor-modal .event-form-footer .event-save-image {
+    grid-column: 1/-1;
+    grid-row: 2;
+    width: 100%;
+    font-size: 13px;
+  }
+  .event-calendar-page .event-view-switch {
+    width: 100%;
+  }
+  .event-calendar-page .event-view-switch .btn {
+    flex: 1;
+  }
+  .event-calendar-page .event-view-toolbar {
+    gap: 10px;
+  }
+  .event-calendar-page .event-kind-filter {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .event-calendar-page .event-kind-filter select {
+    font-size: 16px;
+  }
+  .event-calendar-page .event-view-toolbar > span {
+    width: 100%;
+  }
+  .event-calendar-page .schedule-event-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .event-calendar-page .schedule-event-card h4 {
+    font-size: 17px;
+  }
+  .event-calendar-page .schedule-event-card .btn {
+    align-self: flex-end;
+    min-width: 72px;
+  }
+  .event-calendar-page .event-date-add {
+    font-size: 12px;
+    min-height: 36px;
+    padding: 2px;
+  }
+  .event-calendar-page .event-more {
+    font-size: 11px;
+    min-height: 40px;
+    overflow-wrap: anywhere;
+  }
+  .schedule-page .schedule-tabs {
+    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .schedule-page .schedule-tabs a {
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    padding: 10px 5px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event-calendar-page .btn,
+  .event-editor-modal .button {
+    transition: none;
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .event-endpoint > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
