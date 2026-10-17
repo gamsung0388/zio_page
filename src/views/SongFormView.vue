@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch, nextTick } from "vue";
 import LeafRating from "../components/LeafRating.vue";
 import StatusPill from "../components/StatusPill.vue";
 import { validateDraft } from "../services/song-adapter.js";
@@ -20,7 +20,9 @@ const emit = defineEmits(["save", "cancel"]);
 const isEdit = computed(() => Boolean(props.song?.id));
 const busy = ref(false);
 const error = ref("");
+const saveErrorElement = ref(null);
 const baseline = ref("");
+const sourceRevision = ref(0);
 const dirty = computed(() => JSON.stringify(form) !== baseline.value);
 function markSaved() {
   baseline.value = JSON.stringify(form);
@@ -42,6 +44,7 @@ const form = reactive({
 
 function reset() {
   const song = props.song;
+  sourceRevision.value = song?.revision || 0;
   Object.assign(form, {
     title: song?.title ?? "",
     artist: song?.artist ?? "",
@@ -69,6 +72,7 @@ const drafts = useEditorDraft({
     ...form,
     links: form.links.map((link) => ({ ...link })),
     sourceUpdatedAt: props.song?.updatedAt || null,
+    sourceRevision: sourceRevision.value,
   }),
   validate: isSongDraft,
   apply(value) {
@@ -81,6 +85,11 @@ const drafts = useEditorDraft({
     )
       return false;
     for (const key of Object.keys(form)) form[key] = value[key];
+    sourceRevision.value =
+      value.sourceRevision ??
+      (value.sourceUpdatedAt === (props.song?.updatedAt || null)
+        ? props.song?.revision || 0
+        : 0);
   },
 });
 const { pending, storageError } = drafts;
@@ -88,7 +97,24 @@ function saved() {
   markSaved();
   drafts.clear();
 }
-defineExpose({ dirty, busy, markSaved: saved, discardDraft: drafts.clear });
+function currentDraft() {
+  return { ...form, sourceRevision: sourceRevision.value };
+}
+function applyReview(value) {
+  for (const key of Object.keys(form))
+    if (Object.hasOwn(value, key)) form[key] = value[key];
+  sourceRevision.value = value.sourceRevision;
+  error.value = "";
+  drafts.persist();
+}
+defineExpose({
+  dirty,
+  busy,
+  markSaved: saved,
+  discardDraft: drafts.clear,
+  currentDraft,
+  applyReview,
+});
 
 const previewSong = computed(() => ({
   title: form.title.trim() || "곡 제목을 입력해주세요",
@@ -159,6 +185,9 @@ async function submit() {
     language: form.language.trim(),
     isPublic: form.isPublic,
     links: cleanLinks,
+    ...(props.connected && isEdit.value
+      ? { sourceRevision: sourceRevision.value }
+      : {}),
   };
   busy.value = true;
   try {
@@ -166,6 +195,8 @@ async function submit() {
     else emit("save", payload);
   } catch (err) {
     error.value = err.message || "저장하지 못했어요. 다시 시도해주세요.";
+    await nextTick();
+    saveErrorElement.value?.focus();
   } finally {
     busy.value = false;
   }
@@ -387,7 +418,16 @@ async function submit() {
           </p>
         </div>
       </fieldset>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <p
+        v-if="error"
+        ref="saveErrorElement"
+        class="form-error"
+        role="alert"
+        tabindex="-1"
+      >
+        {{ error }}
+      </p>
+      <slot name="save-error" />
       <div class="form-actions">
         <button
           class="btn btn-outline"

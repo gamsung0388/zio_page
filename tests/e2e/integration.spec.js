@@ -40,13 +40,18 @@ async function create(page, extra = {}) {
   return song;
 }
 test.afterEach(async ({ page }) => {
-  for (const id of created)
+  for (const id of created) {
+    const response = await page.request.get("/api/admin/songs/" + id);
+    if (!response.ok()) continue;
+    const song = await response.json();
     await page.request.delete("/api/admin/songs/" + id, {
       headers: {
         Origin: "http://127.0.0.1:5174",
         "X-CSRF-Token": credentials.csrfToken,
       },
+      data: { expected_revision: song.revision },
     });
+  }
   created = [];
 });
 

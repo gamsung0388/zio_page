@@ -20,7 +20,12 @@ export function isSongDraft(value) {
     "sourceUpdatedAt",
   ];
   if (
-    Object.keys(value).some((key) => !allowed.includes(key)) ||
+    Object.keys(value).some(
+      (key) => !allowed.includes(key) && key !== "sourceRevision",
+    ) ||
+    (Object.hasOwn(value, "sourceRevision") &&
+      (!Number.isSafeInteger(value.sourceRevision) ||
+        value.sourceRevision < 0)) ||
     allowed.some((key) => !Object.hasOwn(value, key))
   )
     return false;

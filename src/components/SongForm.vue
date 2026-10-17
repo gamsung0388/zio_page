@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, useId } from "vue";
 import { api } from "../services/api.js";
+import { updateAdminSong } from "../services/song-admin.js";
 import { proficiencyLabels, practiceLabels } from "../services/song-labels.js";
 import Modal from "./Modal.vue";
 const props = defineProps({ song: Object });
@@ -34,10 +35,9 @@ async function save() {
   error.value = "";
   details.value = [];
   try {
-    await api(props.song ? `/admin/songs/${props.song.id}` : "/admin/songs", {
-      method: props.song ? "PATCH" : "POST",
-      body: { ...draft },
-    });
+    if (props.song)
+      await updateAdminSong(props.song.id, props.song.revision, { ...draft });
+    else await api("/admin/songs", { method: "POST", body: { ...draft } });
     emit(
       "saved",
       props.song ? "노래를 수정했습니다." : "새 노래를 등록했습니다.",

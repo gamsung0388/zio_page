@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
-import { api } from "../services/api.js";
-import { toSongView, toSongInput } from "../services/song-adapter.js";
+import { getAdminSong, saveAdminSong } from "../services/song-admin.js";
+import SongConflictReview from "../components/SongConflictReview.vue";
 import { useEditorGuard } from "../services/editor-guards.js";
 import { notify } from "../services/notifications.js";
 import SongFormView from "../views/SongFormView.vue";
@@ -12,7 +12,12 @@ const route = useRoute(),
   song = ref(null),
   loading = ref(Boolean(route.params.id)),
   error = ref(""),
-  editor = ref(null);
+  editor = ref(null),
+  conflict = ref(false),
+  review = ref(null),
+  reviewBase = ref(null),
+  reviewBusy = ref(false),
+  reviewError = ref("");
 const controller = new AbortController();
 useEditorGuard(() => editor.value?.dirty || editor.value?.busy);
 function destination() {
@@ -26,12 +31,10 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    song.value = toSongView(
-      await api("/admin/songs/" + encodeURIComponent(route.params.id), {
-        signal: controller.signal,
-      }),
-      { admin: true },
-    );
+    song.value = await getAdminSong(route.params.id, {
+      signal: controller.signal,
+    });
+    reviewBase.value = song.value;
   } catch (err) {
     if (err.name !== "AbortError") error.value = err.message;
   } finally {
@@ -39,16 +42,56 @@ async function load() {
   }
 }
 async function save(draft) {
-  await api("/admin/songs" + (song.value ? "/" + song.value.id : ""), {
-    method: song.value ? "PATCH" : "POST",
-    body: toSongInput(draft, { admin: true }),
-  });
+  try {
+    if (song.value && !draft.sourceRevision) {
+      const error = new Error(
+        "이전 초안이에요. 저장된 내용과 비교한 뒤 다시 저장해주세요.",
+      );
+      error.code = "SONG_CONFLICT";
+      throw error;
+    }
+    await saveAdminSong(song.value?.id, draft);
+  } catch (err) {
+    if (err.code === "SONG_CONFLICT") conflict.value = true;
+    throw err;
+  }
   const message = song.value
     ? "노래를 수정했습니다."
     : "새 노래를 등록했습니다.";
   editor.value.markSaved();
   await router.push(destination());
   notify(message);
+}
+async function compare() {
+  if (reviewBusy.value || editor.value?.busy) return;
+  reviewBusy.value = true;
+  reviewError.value = "";
+  try {
+    const latest = await getAdminSong(song.value.id, {
+      signal: controller.signal,
+    });
+    const draft = editor.value.currentDraft();
+    const base =
+      reviewBase.value?.revision === draft.sourceRevision
+        ? reviewBase.value
+        : null;
+    review.value = { base, draft, latest };
+  } catch (err) {
+    if (err.name !== "AbortError")
+      reviewError.value =
+        err.status === 404
+          ? "이 노래는 삭제됐어요. 현재 입력은 유지됩니다. 내용을 보관한 뒤 목록을 확인해주세요."
+          : err.message;
+  } finally {
+    reviewBusy.value = false;
+  }
+}
+function applyReview(draft) {
+  editor.value.applyReview(draft);
+  reviewBase.value = review.value.latest;
+  review.value = null;
+  conflict.value = false;
+  notify("비교한 내용으로 편집을 계속합니다. 저장 버튼을 눌러야 반영돼요.");
 }
 function confirmLeave() {
   if (
@@ -80,7 +123,14 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <Notice :loading="loading" :error="error" @retry="load" /><SongFormView
+  <Notice :loading="loading" :error="error" @retry="load" />
+  <SongConflictReview
+    v-if="review"
+    v-bind="review"
+    @close="review = null"
+    @apply="applyReview"
+  />
+  <SongFormView
     v-if="!loading && !error"
     ref="editor"
     :song="song"
@@ -88,5 +138,37 @@ onBeforeUnmount(() => {
     connected
     :save-action="save"
     @cancel="router.push(destination())"
-  />
+  >
+    <template #save-error>
+      <div
+        v-if="conflict"
+        class="card song-conflict-notice"
+        role="region"
+        aria-label="노래 변경 충돌 안내"
+      >
+        <p>
+          다른 곳에서 저장된 내용이 있어요. 내 입력은 유지됩니다. 최신 내용과
+          비교해 다시 저장하세요.
+        </p>
+        <button
+          type="button"
+          class="button secondary"
+          :disabled="reviewBusy || editor?.busy"
+          @click="compare"
+        >
+          {{ reviewBusy ? "불러오는 중…" : "저장된 내용과 비교" }}
+        </button>
+        <p v-if="reviewError" class="form-error" role="alert">
+          {{ reviewError }}
+        </p>
+      </div>
+    </template>
+  </SongFormView>
 </template>
+
+<style scoped>
+.song-conflict-notice {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+</style>

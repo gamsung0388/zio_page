@@ -3,26 +3,35 @@ import {
   eventInput,
   validateEventBackup,
 } from "../../shared/schedule/events.js";
+export function fetchEventPage(
+  from,
+  to,
+  { kind = "", page = 1, pageSize = 200, signal } = {},
+) {
+  return api(
+    "/admin/schedule-events?" +
+      new URLSearchParams({
+        from,
+        to,
+        kind,
+        page: String(page),
+        page_size: String(pageSize),
+      }),
+    { signal },
+  );
+}
 export async function fetchEvents(from, to, { kind = "", signal } = {}) {
   const result = [];
   let page = 1,
     total;
   do {
-    const data = await api(
-      "/admin/schedule-events?" +
-        new URLSearchParams({
-          from,
-          to,
-          kind,
-          page: String(page),
-          page_size: "200",
-        }),
-      { signal },
-    );
+    const data = await fetchEventPage(from, to, { kind, page, signal });
     result.push(...data.items);
     total = data.pagination.total;
     if (total > 2000)
-      throw new Error("일정이 많아요. 일정 구분이나 조회 기간을 줄여주세요.");
+      throw new Error(
+        "일정이 많아요. 목록 보기에서 날짜나 구분으로 나누어 확인해주세요. 전체 조회와 백업은 최대 2,000개를 지원합니다.",
+      );
     if (!data.items.length && result.length < total)
       throw new Error("일정 조회 결과가 바뀌었어요. 다시 불러와주세요.");
     page++;

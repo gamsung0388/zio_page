@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { queryPage } from "../../shared/pagination.js";
 import { useRoute } from "vue-router";
 import { isDate, mondayOf, todayKst } from "../../shared/schedule/dates.js";
 import { isEventDate, EVENT_KINDS } from "../../shared/schedule/events.js";
@@ -27,7 +28,16 @@ const day = computed(() =>
 );
 const listTarget = computed(() => ({
   path: "/admin/schedule",
-  query: { month: month.value, view: "list", day: day.value, kind: kind.value },
+  query: {
+    month: month.value,
+    view: "list",
+    day: day.value,
+    kind: kind.value,
+    page:
+      queryPage(route.query.page) > 1
+        ? String(queryPage(route.query.page))
+        : undefined,
+  },
 }));
 const sections = [
   { id: "guide-register", label: "날짜·시간 등록" },
@@ -81,6 +91,11 @@ function jumpTo(id) {
         </p>
       </article>
     </div>
+    <p class="schedule-help">
+      일정 목록은 월 또는 선택 날짜의 일정을 50개씩 보여줍니다. 다음·이전
+      페이지로 이동할 수 있고, 이번 달 백업은 현재 페이지와 관계없이 해당 월의
+      일정을 조회합니다. 구분 필터를 선택했다면 백업에도 그 구분이 적용됩니다.
+    </p>
     <nav class="card guide-contents" aria-label="가이드 목차">
       <h2>필요한 내용부터 찾아보세요</h2>
       <div>

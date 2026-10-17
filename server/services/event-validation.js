@@ -1,3 +1,4 @@
+import { validateRevision } from "./revisions.js";
 import { ApiError } from "../utils/http.js";
 import { isDate } from "../../shared/schedule/dates.js";
 import {
@@ -57,11 +58,8 @@ export function validateEvent(input, updating = false) {
   }
 }
 export function validateEventRevision(value) {
-  if (!Number.isSafeInteger(value) || value < 1)
-    throw new ApiError(
-      422,
-      "EVENT_REVISION",
-      "저장된 일정 버전을 확인해주세요.",
-    );
-  return value;
+  return validateRevision(value, {
+    code: "EVENT_REVISION",
+    message: "저장된 일정 버전을 확인해주세요.",
+  });
 }

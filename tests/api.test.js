@@ -89,6 +89,7 @@ before(async () => {
     "0003_admin_password_change.sql",
     "0004_admin_schedule_weeks.sql",
     "0005_admin_schedule_events.sql",
+    "0006_song_revisions.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -269,7 +270,7 @@ test("CRUD persists in D1; proficiency and practice state remain independent; pu
   let response = await request(
     `/api/admin/songs/${created.id}`,
     "PATCH",
-    { proficiency: 5 },
+    { proficiency: 5, expected_revision: 1 },
     auth,
   );
   assert.equal(response.status, 200);
@@ -278,7 +279,7 @@ test("CRUD persists in D1; proficiency and practice state remain independent; pu
   response = await request(
     `/api/admin/songs/${created.id}`,
     "PATCH",
-    { practice_status: "completed" },
+    { practice_status: "completed", expected_revision: 2 },
     auth,
   );
   updated = await response.json();
@@ -307,19 +308,31 @@ test("CRUD persists in D1; proficiency and practice state remain independent; pu
   await request(
     `/api/admin/songs/${created.id}`,
     "PATCH",
-    { is_public: false },
+    { is_public: false, expected_revision: 3 },
     auth,
   );
   assert.equal((await request(`/api/songs/${created.id}`)).status, 404);
   assert.equal(
-    (await request(`/api/admin/songs/${created.id}`, "DELETE", undefined, auth))
-      .status,
+    (
+      await request(
+        `/api/admin/songs/${created.id}`,
+        "DELETE",
+        { expected_revision: 4 },
+        auth,
+      )
+    ).status,
     200,
   );
   assert.equal(
-    (await request(`/api/admin/songs/${created.id}`, "DELETE", undefined, auth))
-      .status,
-    404,
+    (
+      await request(
+        `/api/admin/songs/${created.id}`,
+        "DELETE",
+        { expected_revision: 4 },
+        auth,
+      )
+    ).status,
+    409,
   );
   assert.equal(
     (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
@@ -1948,4 +1961,145 @@ test("weekly deletion rejects unknown fields, invalid revisions and invalid week
     (await (await request(path, "GET", undefined, auth)).json()).is_saved,
     true,
   );
+});
+
+test("song versions protect concurrent edits, stale visibility changes and deletes atomically", async () => {
+  const firstAuth = await login(),
+    secondAuth = await login();
+  const created = await create(firstAuth),
+    path = "/api/admin/songs/" + created.id;
+  assert.equal(created.revision, 1);
+  const updates = await Promise.all([
+    request(
+      path,
+      "PATCH",
+      { title: "편집 A", expected_revision: 1 },
+      firstAuth,
+    ),
+    request(
+      path,
+      "PATCH",
+      { title: "편집 B", expected_revision: 1 },
+      secondAuth,
+    ),
+  ]);
+  assert.deepEqual(updates.map((item) => item.status).sort(), [200, 409]);
+  assert.equal(
+    (await updates.find((item) => item.status === 409).json()).error.code,
+    "SONG_CONFLICT",
+  );
+  const saved = await (await request(path, "GET", undefined, firstAuth)).json();
+  assert.equal(saved.revision, 2);
+  assert.equal(
+    (
+      await request(
+        path,
+        "PATCH",
+        { is_public: false, expected_revision: 1 },
+        secondAuth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1 }, secondAuth))
+      .status,
+    409,
+  );
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 2 }, firstAuth)).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        path,
+        "PATCH",
+        { title: "삭제 후 저장", expected_revision: 2 },
+        secondAuth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal((await request(path, "GET", undefined, firstAuth)).status, 404);
+});
+test("song mutations require strict revisions while public API and CSV keep their existing field contracts", async () => {
+  const auth = await login(),
+    created = await create(auth),
+    path = "/api/admin/songs/" + created.id;
+  for (const expected_revision of [
+    undefined,
+    0,
+    -1,
+    1.5,
+    "1",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    assert.equal(
+      (await request(path, "PATCH", { title: "변경", expected_revision }, auth))
+        .status,
+      422,
+    );
+    assert.equal(
+      (await request(path, "DELETE", { expected_revision }, auth)).status,
+      422,
+    );
+  }
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1, extra: true }, auth))
+      .status,
+    422,
+  );
+  const publicSong = await (await request("/api/songs/" + created.id)).json();
+  assert.equal("revision" in publicSong, false);
+  assert.equal("memo" in publicSong, false);
+  const publicList = await (await request("/api/songs")).json();
+  assert.equal("revision" in publicList.items[0], false);
+  const backup = await (
+    await request("/api/admin/songs/export.csv", "GET", undefined, auth)
+  ).text();
+  assert.equal(
+    backup.replace(/^\uFEFF/, "").split("\r\n")[0],
+    CSV_COLUMNS.join(","),
+  );
+  assert.equal(backup.includes("revision"), false);
+  assert.equal((await request(path, "GET", undefined, auth)).status, 200);
+  assert.equal(
+    (await (await request(path, "GET", undefined, auth)).json()).revision,
+    1,
+  );
+});
+test("event list API pages beyond 2000 records and uses overlap rather than start-date equality", async () => {
+  const auth = await login();
+  await db
+    .prepare(
+      "INSERT INTO admin_schedule_events (title,description,kind,time_mode,starts_at,ends_at) SELECT '대량 '||key,'','broadcast','all_day',?,? FROM json_each(?)",
+    )
+    .bind(
+      "2028-01-31T15:00:00.000Z",
+      "2028-03-01T15:00:00.000Z",
+      JSON.stringify(Array(2051).fill(0)),
+    )
+    .run();
+  const data = await (
+    await request(
+      "/api/admin/schedule-events?from=2028-02-15&to=2028-02-15&page=42&page_size=50",
+      "GET",
+      undefined,
+      auth,
+    )
+  ).json();
+  assert.equal(data.pagination.total, 2051);
+  assert.equal(data.items.length, 1);
+  assert.equal(data.items[0].start_date, "2028-02-01");
+  assert.equal(data.items[0].end_date, "2028-03-01");
+  const filtered = await (
+    await request(
+      "/api/admin/schedule-events?from=2028-02-15&to=2028-02-15&kind=personal&page=1&page_size=50",
+      "GET",
+      undefined,
+      auth,
+    )
+  ).json();
+  assert.equal(filtered.pagination.total, 0);
 });

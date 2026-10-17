@@ -26,6 +26,15 @@ import {
   eventDateLabel,
   eventRangeLabel,
 } from "../schedule/event-presentation.js";
+import { indexEventsByDate } from "../../shared/schedule/event-index.js";
+import { queryPage } from "../../shared/pagination.js";
+import { useScheduleEvents } from "../schedule/useScheduleEvents.js";
+import {
+  eventsInMonth,
+  groupEventList,
+  monthRange,
+} from "../schedule/event-query.js";
+import Pagination from "../components/Pagination.vue";
 import { useKstToday } from "../schedule/useKstToday.js";
 import {
   fetchEvents,
@@ -60,10 +69,7 @@ const month = computed(() =>
       ? route.query.view
       : mobileView,
   );
-const events = ref([]),
-  loading = ref(true),
-  error = ref(""),
-  transfer = ref(false),
+const transfer = ref(false),
   actionError = ref(""),
   dialog = ref(null),
   importData = ref(null),
@@ -77,13 +83,6 @@ const editId = computed(() =>
 );
 const initialDate = computed(() =>
   isEventDate(route.query.date) ? route.query.date : initialToday,
-);
-const inMonth = computed(() =>
-  events.value.filter(
-    (item) =>
-      item.starts_at < kstInstant(shiftMonth(month.value, 1) + "-01") &&
-      item.ends_at > kstInstant(month.value + "-01"),
-  ),
 );
 const selectedDay = computed(() =>
   isEventDate(route.query.day) && dates.value.includes(route.query.day)
@@ -117,65 +116,40 @@ function openNew() {
     open("new", registrationDate.value);
   } else open();
 }
-const listItems = computed(() =>
-  selectedDay.value
-    ? events.value.filter((item) => eventOccursOn(item, selectedDay.value))
-    : inMonth.value,
-);
-const dayGroups = computed(() => {
-  const groups = new Map();
-  for (const event of listItems.value) {
-    const date =
-      selectedDay.value ||
-      (event.start_date < month.value + "-01"
-        ? month.value + "-01"
-        : event.start_date);
-    if (!groups.has(date)) groups.set(date, []);
-    groups.get(date).push(event);
-  }
-  return [...groups]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, items]) => ({ date, items }));
-});
-const eventsByDay = computed(
-  () =>
-    new Map(
-      dates.value.map((date) => [
-        date,
-        events.value.filter((item) => eventOccursOn(item, date)),
-      ]),
-    ),
-);
-const resultCount = computed(() =>
-  selectedDay.value
-    ? listItems.value.length + "개 일정 · 선택한 날짜"
-    : inMonth.value.length + "개 일정 · 한국 시간",
-);
-let controller;
-async function load() {
-  controller?.abort();
-  controller = new AbortController();
-  const request = controller;
-  loading.value = true;
-  error.value = "";
-  try {
-    const data = await fetchEvents(dates.value[0], dates.value.at(-1), {
-      kind: kind.value,
-      signal: request.signal,
+const page = computed(() => queryPage(route.query.page));
+const {
+  events,
+  total,
+  pages,
+  key: requestKey,
+  load,
+  loading,
+  error,
+} = useScheduleEvents({
+  month,
+  view,
+  day: selectedDay,
+  kind,
+  page,
+  correctPage(value) {
+    return router.replace({
+      query: { ...route.query, page: value === 1 ? undefined : String(value) },
     });
-    if (request === controller) events.value = data;
-  } catch (err) {
-    if (err.name !== "AbortError") error.value = err.message;
-  } finally {
-    if (request === controller) loading.value = false;
-  }
-}
-watch(
-  [month, kind],
-  () => {
-    load();
   },
-  { immediate: true },
+});
+const inMonth = computed(() => eventsInMonth(events.value, month.value));
+const listItems = computed(() => events.value);
+const dayGroups = computed(() =>
+  groupEventList(listItems.value, month.value, selectedDay.value),
+);
+const eventsByDay = computed(() =>
+  indexEventsByDate(events.value, dates.value),
+);
+const resultCount = computed(
+  () =>
+    (view.value === "list" ? total.value : inMonth.value.length) +
+    (selectedDay.value ? "개 일정 · 선택한 날짜" : "개 일정 · 한국 시간") +
+    (view.value === "list" && pages.value > 1 ? " · 50개씩 표시" : ""),
 );
 watch(editId, (value) => {
   if (!value) pendingImport.value = null;
@@ -189,6 +163,10 @@ function kindLabel(value) {
 async function changeQuery(query, input, field) {
   try {
     const next = { ...route.query, ...query };
+    if (
+      ["month", "kind", "view", "day"].some((key) => Object.hasOwn(query, key))
+    )
+      next.page = undefined;
     if (Object.hasOwn(query, "month") || Object.hasOwn(query, "kind"))
       next.day = undefined;
     await router.push({ query: next });
@@ -226,6 +204,7 @@ async function saved(event, image) {
     });
   else {
     const previousMonth = month.value;
+    const previousRequestKey = requestKey.value;
     const overlaps =
       event.starts_at < kstInstant(shiftMonth(previousMonth, 1) + "-01") &&
       event.ends_at > kstInstant(previousMonth + "-01");
@@ -237,10 +216,11 @@ async function saved(event, image) {
         day: overlaps && keepDay ? route.query.day : undefined,
         edit: undefined,
         date: undefined,
+        page: undefined,
       },
     });
     if (view.value === "list") registrationDate.value = event.start_date;
-    if (month.value === previousMonth && !resetKind) await load();
+    if (requestKey.value === previousRequestKey) await load();
   }
 }
 async function deleted() {
@@ -267,7 +247,13 @@ async function backup(all) {
   actionError.value = "";
   try {
     backupEventsFile(
-      all ? await fetchAllEvents() : inMonth.value,
+      all
+        ? await fetchAllEvents()
+        : await fetchEvents(
+            monthRange(month.value).from,
+            monthRange(month.value).to,
+            { kind: kind.value },
+          ),
       all ? "zio-events-all-" + today.value : "zio-events-" + month.value,
     );
     notify("개별 일정 백업을 만들었습니다.");
@@ -307,7 +293,6 @@ function beforeUnload(event) {
 }
 onMounted(() => window.addEventListener("beforeunload", beforeUnload));
 onBeforeUnmount(() => {
-  controller?.abort();
   window.removeEventListener("beforeunload", beforeUnload);
 });
 </script>
@@ -467,6 +452,13 @@ onBeforeUnmount(() => {
         loading-message="일정을 불러오고 있어요."
         @retry="load"
       />
+      <button
+        v-if="error && view === 'calendar'"
+        class="btn btn-outline"
+        @click="changeQuery({ view: 'list' })"
+      >
+        일정 목록으로 보기
+      </button>
       <template v-if="!loading && !error"
         ><div
           v-if="view === 'calendar'"
@@ -584,7 +576,9 @@ onBeforeUnmount(() => {
                 ><small v-if="group.date === today">오늘</small>
               </h3>
               <div class="event-group-actions">
-                <span>{{ group.items.length }}개</span
+                <span
+                  >{{ pages > 1 ? "이 페이지 " : ""
+                  }}{{ group.items.length }}개</span
                 ><button
                   class="text-button"
                   :aria-label="group.date + ' 일정 추가'"
@@ -628,8 +622,15 @@ onBeforeUnmount(() => {
               </button>
             </article>
           </section>
-        </div></template
-      >
+          <Pagination
+            v-if="pages > 1"
+            :page="page"
+            :pages="pages"
+            :disabled="loading || transfer"
+            label="일정 목록 페이지"
+            @change="changeQuery({ page: String($event) })"
+          /></div
+      ></template>
     </section>
     <p class="schedule-help">
       모든 관리자가 함께 쓰는 관리자 전용 일정입니다. 기간 일정은 해당 날짜마다

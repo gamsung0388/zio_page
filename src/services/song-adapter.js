@@ -25,7 +25,10 @@ export function toSongView(song, { admin = false } = {}) {
     cover: "",
     links: [],
   };
-  if (admin) view.privateMemo = song.memo || "";
+  if (admin) {
+    view.privateMemo = song.memo || "";
+    view.revision = song.revision;
+  }
   return view;
 }
 export function toSongInput(view, { admin = false } = {}) {

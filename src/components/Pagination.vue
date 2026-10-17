@@ -1,9 +1,14 @@
 <script setup>
-defineProps({ page: Number, pages: Number, disabled: Boolean });
+defineProps({
+  page: Number,
+  pages: Number,
+  disabled: Boolean,
+  label: { type: String, default: "노래 목록 페이지" },
+});
 defineEmits(["change"]);
 </script>
 <template>
-  <nav class="pagination" aria-label="노래 목록 페이지">
+  <nav class="pagination" :aria-label="label">
     <button
       class="button secondary small"
       :disabled="page <= 1 || disabled"

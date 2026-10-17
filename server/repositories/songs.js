@@ -3,7 +3,7 @@ export const PUBLIC_COLUMNS =
   "id, title, artist, description, genre, language, proficiency, practice_status, balloon_cost, is_public, created_at, updated_at";
 export const serialize = (row) =>
   row ? { ...row, is_public: row.is_public === 1 } : null;
-const columns = (admin) => PUBLIC_COLUMNS + (admin ? ", memo" : "");
+const columns = (admin) => PUBLIC_COLUMNS + (admin ? ", memo, revision" : "");
 export async function listSongs(db, filters, admin = false) {
   const where = admin ? ["1=1"] : ["is_public=1"];
   const values = [];
@@ -90,24 +90,25 @@ export async function createSong(db, song) {
     .first();
   return serialize(row);
 }
-export async function updateSong(db, id, changes) {
+export async function updateSong(db, id, changes, revision) {
   const fields = SONG_FIELDS.filter((field) => Object.hasOwn(changes, field));
   const row = await db
     .prepare(
-      `UPDATE songs SET ${fields.map((field) => `${field}=?`).join(",")}, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? RETURNING *`,
+      `UPDATE songs SET ${fields.map((field) => `${field}=?`).join(",")}, revision=revision+1, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND revision=? RETURNING *`,
     )
     .bind(
       ...fields.map((field) =>
         field === "is_public" ? Number(changes[field]) : changes[field],
       ),
       id,
+      revision,
     )
     .first();
   return serialize(row);
 }
-export async function deleteSong(db, id) {
+export async function deleteSong(db, id, revision) {
   return db
-    .prepare("DELETE FROM songs WHERE id=? RETURNING id")
-    .bind(id)
+    .prepare("DELETE FROM songs WHERE id=? AND revision=? RETURNING id")
+    .bind(id, revision)
     .first();
 }

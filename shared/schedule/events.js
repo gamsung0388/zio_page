@@ -1,5 +1,14 @@
 import { isDate, addDays } from "./dates.js";
 import { createScheduleForm } from "./scheduleFactory.js";
+import {
+  DAY,
+  isTime,
+  kstInstant,
+  dayBounds,
+  eventOverlaps,
+} from "./event-time.js";
+import { indexEventsByDate } from "./event-index.js";
+export { isTime, kstInstant } from "./event-time.js";
 export const EVENT_KINDS = Object.freeze([
   { value: "broadcast", label: "방송" },
   { value: "collab", label: "합방" },
@@ -14,17 +23,9 @@ export const TIME_MODES = Object.freeze([
 ]);
 export const EVENT_DATE_MIN = "2000-01-01",
   EVENT_DATE_MAX = "2099-12-31";
-const DAY = 86400000,
-  OFFSET = 9 * 3600000;
-export const isTime = (value) =>
-  typeof value === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
+const OFFSET = 9 * 3600000;
 export const isEventDate = (value) =>
   isDate(value) && value >= EVENT_DATE_MIN && value <= EVENT_DATE_MAX;
-export function kstInstant(date, time = "00:00") {
-  if (!isDate(date) || !isTime(time))
-    throw new Error("날짜와 시간을 확인해주세요.");
-  return new Date(date + "T" + time + ":00+09:00").toISOString();
-}
 function kstParts(instant) {
   const value = new Date(Date.parse(instant) + OFFSET).toISOString();
   return { date: value.slice(0, 10), time: value.slice(11, 16) };
@@ -152,9 +153,8 @@ export function eventFromRow(row) {
   };
 }
 export function eventOccursOn(event, date) {
-  const start = kstInstant(date),
-    end = new Date(Date.parse(start) + DAY).toISOString();
-  return event.starts_at < end && event.ends_at > start;
+  const { start, end } = dayBounds(date);
+  return eventOverlaps(event, start, end);
 }
 export function eventTimeLabel(event, date) {
   if (event.time_mode === "all_day") return "종일";
@@ -183,14 +183,15 @@ export function eventPeriodLabel(event) {
 export function projectEventsToWeek(events, week) {
   const form = createScheduleForm(),
     keys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const dates = Array.from({ length: 7 }, (_, index) => addDays(week, index));
+  const sorted = [...events].sort(
+    (a, b) =>
+      a.starts_at.localeCompare(b.starts_at) || (a.id || 0) - (b.id || 0),
+  );
+  const byDate = indexEventsByDate(sorted, dates);
   for (let index = 0; index < 7; index++) {
-    const date = addDays(week, index),
-      items = events
-        .filter((event) => eventOccursOn(event, date))
-        .sort(
-          (a, b) =>
-            a.starts_at.localeCompare(b.starts_at) || (a.id || 0) - (b.id || 0),
-        );
+    const date = dates[index],
+      items = byDate.get(date);
     if (items.length === 1)
       form[keys[index]] = {
         content: items[0].title,

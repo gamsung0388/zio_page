@@ -1,9 +1,15 @@
 <script setup>
 import { computed } from "vue";
+import { queryPage } from "../../../shared/pagination.js";
 import { useRoute } from "vue-router";
 import { isDate, mondayOf } from "../../../shared/schedule/dates.js";
 import { EVENT_KINDS } from "../../../shared/schedule/events.js";
 const route = useRoute();
+const page = computed(() =>
+  queryPage(route.query.page) > 1
+    ? String(queryPage(route.query.page))
+    : undefined,
+);
 const kind = computed(() =>
   EVENT_KINDS.some((item) => item.value === route.query.kind)
     ? route.query.kind
@@ -37,7 +43,10 @@ const day = computed(() =>
 <template>
   <nav class="schedule-tabs" aria-label="일정 관리 메뉴">
     <RouterLink
-      :to="{ path: '/admin/schedule', query: { month, week, view, day, kind } }"
+      :to="{
+        path: '/admin/schedule',
+        query: { month, week, view, day, kind, page },
+      }"
       :class="{ active: $route.path === '/admin/schedule' }"
       active-class=""
       exact-active-class=""
@@ -57,7 +66,7 @@ const day = computed(() =>
     ><RouterLink
       :to="{
         path: '/admin/schedule/guide',
-        query: { month, week, view, day, kind },
+        query: { month, week, view, day, kind, page },
       }"
       :class="{ active: $route.path === '/admin/schedule/guide' }"
       active-class=""

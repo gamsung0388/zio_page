@@ -1,4 +1,5 @@
 <script setup>
+import { updateAdminSong, removeAdminSong } from "../services/song-admin.js";
 import { useRoute, useRouter } from "vue-router";
 import { notification, notify } from "../services/notifications.js";
 import { toSongView } from "../services/song-adapter.js";
@@ -54,13 +55,16 @@ async function toggle(song) {
   actionError.value = "";
   toast.value = "";
   try {
-    await api(`/admin/songs/${song.id}`, {
-      method: "PATCH",
-      body: { is_public: !song.is_public },
+    await updateAdminSong(song.id, song.revision, {
+      is_public: !song.is_public,
     });
     saved(song.is_public ? "비공개로 변경했습니다." : "공개로 변경했습니다.");
   } catch (err) {
-    actionError.value = err.message;
+    actionError.value =
+      err.code === "SONG_CONFLICT"
+        ? "노래가 변경됐어요. 최신 목록을 불러왔으니 내용을 확인하고 다시 선택해주세요."
+        : err.message;
+    if (err.code === "SONG_CONFLICT") await load();
   } finally {
     busy.value = false;
   }
@@ -70,14 +74,18 @@ async function remove() {
   busy.value = true;
   deleteError.value = "";
   try {
-    await api(`/admin/songs/${deleting.value.id}`, { method: "DELETE" });
+    await removeAdminSong(deleting.value);
     deleting.value = null;
     if (items.value.length === 1 && page.value > 1) {
       update("page", page.value - 1);
       notify("노래를 삭제했습니다.");
     } else saved("노래를 삭제했습니다.");
   } catch (err) {
-    deleteError.value = err.message;
+    deleteError.value =
+      err.code === "SONG_CONFLICT"
+        ? "노래가 변경됐어요. 삭제 창을 닫고 최신 목록에서 다시 선택해주세요."
+        : err.message;
+    if (err.code === "SONG_CONFLICT") await load();
   } finally {
     busy.value = false;
   }

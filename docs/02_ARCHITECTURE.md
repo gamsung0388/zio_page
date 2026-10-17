@@ -49,3 +49,7 @@ E:\zio
 
 ## 소스 및 환경 관리
 `.dev.vars`, `.env.local`, API 토큰, 관리자 암호/해시는 버전 관리 제외. CI나 배포 시 비밀값은 Cloudflare Secrets 사용. D1 데이터는 Git에 넣지 않고 schema/migrations만 추적.
+
+## 공통 기능과 기능별 모듈 관리 (2026-10-17)
+
+공통 요청 수명·취소는 src/services/useAsyncResource.js, 페이지 계산은 shared/pagination.js, 서버 버전 검증은 server/services/revisions.js에서 공유합니다. 노래 API는 server/routes/songs.js로 분리했고 노래 비교와 일정 조회/분류는 각각 해당 기능 모듈에 둡니다. shared는 Vue·DOM·DB를 참조하지 않는 순수 함수로 유지합니다. 새 기능은 기존 공통 모듈을 재사용하되 서로 다른 도메인 계약을 하나의 범용 함수에 합치지 않습니다. [모듈별 책임·의존 방향·테스트 기준](21_PRIORITY_REFACTOR.md).

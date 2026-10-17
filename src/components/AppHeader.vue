@@ -1,4 +1,5 @@
 <script setup>
+import { RouterLink } from "vue-router";
 defineProps({
   title: { type: String, default: "지오의 작은 음악 공간" },
   menuOpen: Boolean,

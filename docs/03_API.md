@@ -35,7 +35,7 @@
 인증 필요한 요청의 권한 검사는 클라이언트 라우터 가드와 별개로 **Worker에서 수행**. write 요청은 Origin 확인 및 CSRF 방어를 적용한다. 관리자 API는 `no-store`.
 
 ## API 데이터 필드
-`id, title, artist, description, genre, language, proficiency, practice_status, balloon_cost, is_public, created_at, updated_at`, 관리자에게만 `memo`.
+`id, title, artist, description, genre, language, proficiency, practice_status, balloon_cost, is_public, created_at, updated_at`, 관리자에게만 `memo, revision`.
 필드는 서버 스키마로 검증하고 예상치 못한 속성은 거부 또는 무시를 명시적으로 통일한다. `is_public`은 boolean으로 주고받되 DB에서는 0/1.
 
 ## CSV
@@ -79,3 +79,9 @@
 ### 저장된 주간 메모 삭제
 
 주간 GET/PUT/DELETE 응답은 `is_saved`로 저장 여부를 나타냅니다. 새 미저장 주는 revision 0이며, 삭제된 주는 기본값과 `is_saved:false`를 반환하되 이전 버전을 증가시켜 보존합니다. DELETE JSON은 `{ "expected_revision": 양의 정수 }`만 허용하며 변경·이미 삭제·미저장 주는 409입니다. 삭제된 내용과 스타일은 제거하고 목록/백업에서 제외합니다. 다른 주와 개별 일정은 유지합니다. [삭제·복구·버전 계약](18_WEEKLY_MEMO_DELETE.md).
+
+## 노래 변경 버전 검사 (2026-10-17)
+
+관리자 노래 목록·상세·생성·수정 응답에는 양의 정수 revision을 포함합니다. 공개 API에는 memo와 revision을 포함하지 않으며 CSV 열은 변경하지 않습니다. PATCH JSON은 변경 필드와 expected_revision을, DELETE JSON은 expected_revision 하나만 받습니다. 누락·유효하지 않은 버전은 422 SONG_REVISION, 수정·삭제 시 저장 버전 불일치 또는 삭제된 곡은 409 SONG_CONFLICT입니다. GET의 없는 곡은 기존 404입니다.
+
+수정 SQL의 ID와 revision 검사 및 버전 증가는 한 문장으로 수행합니다. 오래된 요청을 최신 버전으로 자동 재시도하지 않습니다. 기존 세션·Origin·CSRF·강제 비밀번호 변경과 no-store는 유지합니다. 적용 migration 0006과 비교 UI는 [21 구현 기록](21_PRIORITY_REFACTOR.md)을 따릅니다.
