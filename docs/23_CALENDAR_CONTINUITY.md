@@ -44,4 +44,16 @@
 
 ## 운영 반영
 
-배포 후 실제 소스·버전·확인 결과를 기록합니다.
+운영 배포와 확인을 완료했습니다.
+
+- 반영일: 2026-10-17 (한국 시간).
+- 소스: `71a4b2a74cb14447aa9b397f79d201a3bcca52f1`.
+- Worker: `ca208c04-c782-4b23-b13a-1fefc81bccdb`.
+- 프로덕션 빌드 성공. 운영 정적 파일 67개가 로컬 빌드와 SHA-256 일치합니다.
+- DB health ready, 관리자 API의 비로그인 접근 401, 로그인 복귀 주소와 보안 헤더를 확인했습니다.
+- 운영 PC 1440×900·모바일 390×844·360×800에서 17~30일의 주간 막대 세 개, 한 주 전체 너비 연결, 같은 일정 수정, 날짜 선택 등록, 가로 넘침 없음, 페이지 오류·CSP 위반 없음을 확인했습니다.
+- 운영 화면 QA에서는 관리자 API 읽기를 검증용 응답으로 대체했습니다. 실제 저장·삭제·충돌은 격리 D1 E2E에서 확인했고 운영 일정·메모·계정·메뉴에는 테스트 데이터를 쓰지 않았습니다.
+- 화면·배포 보고서는 `.local/calendar-continuity-review/production/`, 다섯 크기 화면은 `.local/calendar-continuity-review/screenshots/`에 보관합니다. 검증 파일은 Git에 넣지 않습니다.
+- 기존 사용자 SQL 수정과 UI 참고 ZIP은 보존했습니다. GitHub codex/phase1에 코드와 기록을 반영합니다.
+
+[일정 달력 열기](https://zio-home.ryan9320.workers.dev/admin/schedule?view=calendar)
