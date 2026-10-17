@@ -1,8 +1,14 @@
+import { getNavigation } from "../repositories/navigation.js";
+import { publicNavigation } from "../../shared/navigation.js";
 import { json, positiveId, ApiError } from "../utils/http.js";
 import { parseFilters } from "../services/song-validation.js";
 import { listSongs, getSong } from "../repositories/songs.js";
 export async function publicRoutes(request, env, path) {
   if (request.method !== "GET") return null;
+  if (path === "/api/navigation")
+    return json({
+      items: publicNavigation((await getNavigation(env.DB)).items),
+    });
   if (path === "/api/health") {
     if (new URL(request.url).searchParams.get("db") !== "1")
       return json({ ok: true, database: "not_checked" });

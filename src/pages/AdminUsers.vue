@@ -1,4 +1,5 @@
 <script setup>
+import "../styles/management.css";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { api, session } from "../services/api.js";
@@ -71,12 +72,12 @@ onMounted(load);
   <div class="container page admin-users-page">
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>
-      <RouterLink to="/admin">관리자 메뉴</RouterLink><span>/</span>
+      <RouterLink to="/admin">관리 홈</RouterLink><span>/</span>
       {{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리" }}
     </div>
     <div class="page-heading">
       <div>
-        <span class="eyebrow">YOUR ADMIN TEAM</span>
+        <span class="eyebrow">함께 운영하는 사람들</span>
         <h1>
           {{ resetMode ? "관리자 비밀번호 초기화" : "관리자 관리"
           }}<span class="green-period">.</span>
@@ -113,6 +114,7 @@ onMounted(load);
         :error="error"
         :empty="!items.length"
         title="등록된 관리자가 없어요"
+        loading-message="관리자 목록을 불러오고 있어요."
         @retry="load"
       />
       <div v-if="!loading && !error && items.length" class="admin-account-list">

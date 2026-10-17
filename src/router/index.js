@@ -41,7 +41,12 @@ const router = createRouter({
     {
       path: "/admin",
       component: () => import("../pages/AdminHome.vue"),
-      meta: { title: "관리자 관리 메뉴", admin: true },
+      meta: { title: "관리", admin: true },
+    },
+    {
+      path: "/admin/menus",
+      component: () => import("../pages/AdminMenus.vue"),
+      meta: { title: "메뉴 관리", admin: true },
     },
     {
       path: "/admin/password-reset",

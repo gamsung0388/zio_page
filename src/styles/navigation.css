@@ -1,0 +1,153 @@
+.integrated-app .sidebar {
+  padding: 28px 17px 20px;
+  background: #153b29;
+}
+.integrated-app .sidebar-brand {
+  padding: 4px 13px;
+}
+.integrated-app .sidebar-brand-title {
+  font-size: 28px;
+}
+.integrated-app .sidebar-brand-title span {
+  display: inline;
+  font-size: 19px;
+  margin: 0 0 0 5px;
+  color: #d1e7bb;
+}
+.integrated-app .sidebar-brand-desc {
+  margin-top: 10px;
+  color: #a7c1a9;
+  font-size: 10px;
+}
+.integrated-app .sidebar-nav {
+  margin-top: 31px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sidebar-group {
+  display: grid;
+  gap: 4px;
+}
+.sidebar-group-title {
+  margin: 0 0 5px;
+  padding: 0 14px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ab79a;
+  letter-spacing: 0.02em;
+}
+.sidebar-group-title a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 25px;
+}
+.sidebar-group-title a:hover {
+  color: #d5efbf;
+}
+.integrated-app .sidebar-item {
+  gap: 10px;
+  font-size: 13px;
+  height: 41px;
+  min-height: 41px;
+  padding: 0 13px;
+}
+.sidebar-item svg {
+  flex-shrink: 0;
+  color: #a7c5a6;
+}
+.sidebar-item.active svg {
+  color: #d5efbd;
+}
+.sidebar-item > span:not(.sr-only):not(.menu-external-mark),
+.sidebar-shortcut > span:not(.sr-only):not(.menu-external-mark) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-external-mark {
+  margin-left: auto;
+  color: inherit;
+  opacity: 0.65;
+  font-size: 12px;
+}
+.sidebar-management-children {
+  border-left: 1px solid #ffffff24;
+  margin-left: 19px;
+  padding-left: 8px;
+  display: grid;
+  gap: 4px;
+}
+.sidebar-management-children .sidebar-item {
+  height: 39px;
+  min-height: 39px;
+  font-size: 12px;
+  padding: 0 12px;
+}
+.integrated-app .sidebar-divider {
+  margin: 21px 11px 13px;
+}
+.sidebar-shortcuts {
+  display: grid;
+  gap: 5px;
+}
+.integrated-app .sidebar-soop,
+.sidebar-shortcut {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+  min-height: 39px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  color: #d4e5cd;
+}
+.sidebar-shortcut:hover {
+  background: #ffffff0b;
+}
+.integrated-app .sidebar-bottom {
+  padding-top: 25px;
+  font-size: 10px;
+  color: #a9c0a8;
+}
+.sidebar-bottom-image {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin: 0 auto 10px;
+  border: 2px solid #d5ebc12e;
+  opacity: 0.9;
+}
+.sidebar-footer-copy {
+  margin: 0;
+}
+.integrated-app .topbar {
+  background: #ffffffc9;
+}
+
+.sidebar-shortcut svg {
+  flex-shrink: 0;
+}
+@media (max-width: 920px) {
+  .integrated-app .sidebar-item,
+  .sidebar-management-children .sidebar-item,
+  .sidebar-shortcut {
+    min-height: 44px;
+  }
+}
+
+/* Keep long custom labels inside each navigation track. */
+.sidebar-group,
+.sidebar-shortcuts {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.sidebar-item,
+.sidebar-shortcut {
+  min-width: 0;
+}
+.sidebar-shortcut > span:not(.sr-only):not(.menu-external-mark) {
+  min-width: 0;
+}

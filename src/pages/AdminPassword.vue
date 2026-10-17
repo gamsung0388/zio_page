@@ -1,4 +1,5 @@
 <script setup>
+import "../styles/management.css";
 import { ref, reactive, computed, useId } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { api, session } from "../services/api.js";
@@ -50,14 +51,13 @@ async function save() {
     <div class="breadcrumb">
       <RouterLink to="/">홈</RouterLink><span>/</span>
       <template v-if="!forced"
-        ><RouterLink to="/admin">관리자 메뉴</RouterLink
-        ><span>/</span></template
+        ><RouterLink to="/admin">관리 홈</RouterLink><span>/</span></template
       >
       관리자 비밀번호 변경
     </div>
     <div class="page-heading">
       <div>
-        <span class="eyebrow">KEEP YOUR ACCOUNT YOURS</span>
+        <span class="eyebrow">내 계정을 안전하게</span>
         <h1>관리자 비밀번호 변경<span class="green-period">.</span></h1>
         <p>
           {{

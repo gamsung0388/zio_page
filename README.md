@@ -25,20 +25,20 @@ npm run dev
 
 ## 명령
 
-| 명령 | 기능 |
-|---|---|
-| `npm run dev` | Vite + 실제 workerd 런타임 + 로컬 D1, 5173 포트 |
-| `npm run build` | Vue 정적 파일과 Worker 프로덕션 빌드 |
-| `npm run preview` | 빌드 결과 로컬 확인 |
-| `npm test` | Node 테스트 + Miniflare/workerd/D1 통합 테스트 |
-| `npm run test:e2e` | 설치된 Microsoft Edge로 반응형·관리자 브라우저 테스트 |
-| `npm run db:migrate:local` | 로컬 DB migration |
-| `npm run db:migrate:remote` | 실제 D1 ID 확인 후 원격 migration |
-| `npm run admin:create` | 로컬 관리자 생성 |
-| `npm run admin:create -- --remote` | 원격 관리자 생성(Cloudflare 인증 필요) |
-| `npm run admin:revoke` | 지정한 로컬 관리자의 모든 세션 폐기 |
-| `npm run admin:revoke -- --remote` | 지정한 원격 관리자의 모든 세션 폐기 |
-| `npm run deploy` | 실제 D1 ID 확인 → 빌드 → Cloudflare 배포 |
+| 명령                               | 기능                                                  |
+| ---------------------------------- | ----------------------------------------------------- |
+| `npm run dev`                      | Vite + 실제 workerd 런타임 + 로컬 D1, 5173 포트       |
+| `npm run build`                    | Vue 정적 파일과 Worker 프로덕션 빌드                  |
+| `npm run preview`                  | 빌드 결과 로컬 확인                                   |
+| `npm test`                         | Node 테스트 + Miniflare/workerd/D1 통합 테스트        |
+| `npm run test:e2e`                 | 설치된 Microsoft Edge로 반응형·관리자 브라우저 테스트 |
+| `npm run db:migrate:local`         | 로컬 DB migration                                     |
+| `npm run db:migrate:remote`        | 실제 D1 ID 확인 후 원격 migration                     |
+| `npm run admin:create`             | 로컬 관리자 생성                                      |
+| `npm run admin:create -- --remote` | 원격 관리자 생성(Cloudflare 인증 필요)                |
+| `npm run admin:revoke`             | 지정한 로컬 관리자의 모든 세션 폐기                   |
+| `npm run admin:revoke -- --remote` | 지정한 원격 관리자의 모든 세션 폐기                   |
+| `npm run deploy`                   | 실제 D1 ID 확인 → 빌드 → Cloudflare 배포              |
 
 E2E는 `.local/e2e/state`에 독립 DB를 사용하고 실행할 때마다 그 **테스트 DB만 초기화**합니다. 임시 관리자 비밀번호는 실행 중 메모리/자식 프로세스 환경에만 보관합니다. 일반 개발 DB(`.wrangler/state`)와 원격 D1은 사용하지 않습니다. Edge가 설치된 Windows를 기준으로 검증했습니다.
 
@@ -114,7 +114,6 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 소스 저장소: [gamsung0388/zio_page](https://github.com/gamsung0388/zio_page), 작업 브랜치: `codex/phase1`. 비밀값·로컬 DB·백업·빌드 산출물은 추적하지 않습니다.
 
 2026-10-16: 사용자 승인 후 소스·설계 문서를 GitHub `codex/phase1`에 업로드했습니다. 운영 D1을 Git에서 제외된 `.local/backups/`에 백업하고 migration 0003 및 관리자 등록·비밀번호 변경·초기화 기능 배포를 완료했습니다. 배포 버전은 `dc9372fa-33c8-495f-b94d-d5096f12c9a0`입니다. 원격 DB 연결, 새 화면 파일, 익명 관리자 API 접근 차단을 확인했습니다. Cloudflare 자동 배포 연결은 설정하지 않았으므로 이후 배포는 `npm run deploy`로 수행합니다.
-
 
 ## 새 UI와 실제 기능 연결 (2026-10-16)
 
@@ -202,3 +201,7 @@ UI·UX 개선 운영 배포 완료: 소스 `790d5fe`, Worker `05c7a7a3-1684-44b0
 공통 요청 취소·응답 보호·페이지 계산·버전 검증을 재사용하고, 노래 비교·일정 조회·날짜별 분류는 기능별 파일로 분리했습니다. 추가 migration은 0006_song_revisions.sql입니다. 기존 화면은 배포 뒤 새로고침해주세요. [기능·코드 구조·검증·배포 기록](docs/21_PRIORITY_REFACTOR.md).
 
 2026-10-17 우선순위 1~3 개선 운영 반영 완료: 소스 `036ff81`, Worker `1b0b139a-ebef-485a-bd96-67567222d129`. 총 139개 검증(재검증 포함 고유 항목), 운영 자산 65개 일치·DB 연결·새 비교/페이지 화면을 확인했습니다. 로컬·원격 DB를 각각 백업하고 migration 0006을 적용했으며 기존 데이터를 보존했습니다. [코드 구조·변경 파일·검증·운영 기록](docs/21_PRIORITY_REFACTOR.md).
+
+## 관리 메뉴와 화면 구성
+
+사이드바의 **관리**는 **관리자 관리**, **메뉴 관리** 두 항목으로 나눴습니다. 노래·일정은 별도의 **운영**에 있습니다. 메뉴 관리에서는 이름·순서·표시 여부를 정리하고 새 HTTPS 링크를 추가할 수 있습니다. 미리보기 후 **메뉴 저장**을 누르면 반영됩니다. 관리자 메뉴는 항상 접근할 수 있고 기존 서버 권한 검사를 유지합니다. 실행 migration 0007이 필요합니다. [사용법·구조·디자인 분석](docs/22_MANAGEMENT_AND_DESIGN.md).

@@ -1,3 +1,4 @@
+import { navigationRoutes } from "./navigation.js";
 import { songRoutes } from "./songs.js";
 import { eventRoutes } from "./schedule-events.js";
 import { scheduleRoutes } from "./schedules.js";
@@ -27,6 +28,8 @@ export async function adminRoutes(request, env, path) {
     });
   }
   const auth = await requireAdmin(request, env);
+  if (path === "/api/admin/navigation")
+    return navigationRoutes(request, env, path, auth);
   if (path === "/api/admin/songs" || path.startsWith("/api/admin/songs/"))
     return songRoutes(request, env, path);
   if (

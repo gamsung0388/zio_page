@@ -5,6 +5,8 @@ import { session, api, checkSession } from "./services/api.js";
 import { confirmLogout } from "./services/editor-guards.js";
 import { clearUserDrafts } from "./services/draft-storage.js";
 import { notification } from "./services/notifications.js";
+import { activeNavigation } from "./services/admin-navigation.js";
+import { useSiteNavigation } from "./services/useSiteNavigation.js";
 import AppSidebar from "./components/AppSidebar.vue";
 import AppHeader from "./components/AppHeader.vue";
 const route = useRoute(),
@@ -12,17 +14,8 @@ const route = useRoute(),
   mobileOpen = ref(false),
   busy = ref(false),
   logoutError = ref("");
-const current = computed(() =>
-  route.path.startsWith("/admin/songs")
-    ? "manage"
-    : route.path.startsWith("/admin/schedule")
-      ? "schedule"
-      : route.meta.admin
-        ? "accounts"
-        : route.path.startsWith("/songs")
-          ? "songs"
-          : "home",
-);
+const current = computed(() => activeNavigation(route.path));
+const menus = useSiteNavigation();
 watch(
   () => route.path,
   () => {
@@ -82,9 +75,17 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <a class="skip-link" href="#main">본문 바로가기</a>
-  <div class="app-shell integrated-app">
+  <div
+    class="app-shell integrated-app"
+    :class="{
+      'management-shell': ['administration', 'accounts', 'menus'].includes(
+        current,
+      ),
+    }"
+  >
     <AppSidebar
       :current="current"
+      :menus="menus"
       :user="session.user"
       :mobile-open="mobileOpen"
       @close="mobileOpen = false"

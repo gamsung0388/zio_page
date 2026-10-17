@@ -37,9 +37,9 @@ async function login() {
   <div class="container login-page">
     <section class="login-card">
       <div class="login-icon"><Icon name="lock" :size="27" /></div>
-      <span class="eyebrow">ZIO HOME ADMIN</span>
+      <span class="eyebrow">지오의 운영실</span>
       <h1>다시 만나 반가워요.</h1>
-      <p>관리자 계정으로 노래책자와 관리자 계정을 관리하세요.</p>
+      <p>노래와 일정, 우리 공간을 함께 돌봐요.</p>
       <p v-if="route.query.expired" class="form-hint" role="status">
         세션이 만료되었습니다. 다시 로그인해주세요.
       </p>

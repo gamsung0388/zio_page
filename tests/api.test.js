@@ -1,3 +1,4 @@
+import { defaultNavigation } from "../shared/navigation.js";
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -90,6 +91,7 @@ before(async () => {
     "0004_admin_schedule_weeks.sql",
     "0005_admin_schedule_events.sql",
     "0006_song_revisions.sql",
+    "0007_site_navigation.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -131,6 +133,7 @@ beforeEach(async () => {
     .run();
   await db.batch(
     [
+      "DELETE FROM site_navigation",
       "DELETE FROM admin_schedule_events",
       "DELETE FROM admin_schedule_weeks",
       "DELETE FROM songs",
@@ -2102,4 +2105,234 @@ test("event list API pages beyond 2000 records and uses overlap rather than star
     )
   ).json();
   assert.equal(filtered.pagination.total, 0);
+});
+
+test("navigation settings enforce administrator authentication, CSRF, origin and forced password change", async () => {
+  const path = "/api/admin/navigation",
+    payload = { items: defaultNavigation(), expected_revision: 0 };
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, "PUT", payload)).status, 401);
+  const auth = await login();
+  assert.equal(
+    (await request(path, "PUT", payload, { ...auth, csrfToken: "" })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(path, "PUT", payload, auth, {
+        Origin: "https://elsewhere.invalid",
+      })
+    ).status,
+    403,
+  );
+  await db.prepare("UPDATE admin_users SET must_change_password=1").run();
+  assert.equal((await request(path, "GET", undefined, auth)).status, 403);
+  assert.equal((await request(path, "PUT", payload, auth)).status, 403);
+  assert.equal((await request("/api/navigation")).status, 200);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM site_navigation").first()).n,
+    0,
+  );
+});
+test("saved navigation is shared but public responses omit hidden and administrator links and actor fields", async () => {
+  const auth = await login();
+  const initial = await (
+    await request("/api/admin/navigation", "GET", undefined, auth)
+  ).json();
+  assert.equal(initial.revision, 0);
+  const items = defaultNavigation().map((item) =>
+    ["about", "manage"].includes(item.id) ? { ...item, visible: false } : item,
+  );
+  items.push({
+    id: "link-public",
+    label: "영상 모음",
+    area: "public",
+    href: "https://example.com/videos",
+    visible: true,
+  });
+  items.push({
+    id: "link-private",
+    label: "PRIVATE_ADMIN_LABEL",
+    area: "work",
+    href: "https://example.com/PRIVATE_ADMIN_URL",
+    visible: true,
+  });
+  const response = await request(
+    "/api/admin/navigation",
+    "PUT",
+    { items, expected_revision: 0 },
+    auth,
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  const saved = await response.json();
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.items.length, 8);
+  assert.equal("updated_by" in saved, false);
+  const publicResponse = await request("/api/navigation"),
+    publicValue = await publicResponse.json();
+  assert.deepEqual(
+    publicValue.items.map((item) => item.id),
+    ["home", "songs", "soop", "link-public"],
+  );
+  assert.equal(JSON.stringify(publicValue).includes("PRIVATE_ADMIN"), false);
+  assert.equal("revision" in publicValue, false);
+  assert.equal("updated_at" in publicValue, false);
+  const other = await login();
+  assert.deepEqual(
+    (
+      await (
+        await request("/api/admin/navigation", "GET", undefined, other)
+      ).json()
+    ).items,
+    saved.items,
+  );
+  assert.equal(
+    (await request("/api/admin/songs", "GET", undefined, other)).status,
+    200,
+  );
+});
+test("navigation creation and updates are atomic and reject stale editors without overwriting the winner", async () => {
+  const auth = await login(),
+    items = defaultNavigation();
+  const saves = await Promise.all(
+    ["홈 A", "홈 B"].map((label) =>
+      request(
+        "/api/admin/navigation",
+        "PUT",
+        {
+          items: items.map((item) =>
+            item.id === "home" ? { ...item, label } : item,
+          ),
+          expected_revision: 0,
+        },
+        auth,
+      ),
+    ),
+  );
+  assert.deepEqual(saves.map((value) => value.status).sort(), [200, 409]);
+  let saved = await (
+    await request("/api/admin/navigation", "GET", undefined, auth)
+  ).json();
+  assert.equal(saved.revision, 1);
+  const edits = await Promise.all(
+    ["홈 C", "홈 D"].map((label) =>
+      request(
+        "/api/admin/navigation",
+        "PUT",
+        {
+          items: items.map((item) =>
+            item.id === "home" ? { ...item, label } : item,
+          ),
+          expected_revision: 1,
+        },
+        auth,
+      ),
+    ),
+  );
+  assert.deepEqual(edits.map((value) => value.status).sort(), [200, 409]);
+  saved = await (
+    await request("/api/admin/navigation", "GET", undefined, auth)
+  ).json();
+  assert.equal(saved.revision, 2);
+  const stale = await request(
+    "/api/admin/navigation",
+    "PUT",
+    { items, expected_revision: 0 },
+    auth,
+  );
+  assert.equal(stale.status, 409);
+  assert.equal((await stale.json()).error.code, "NAVIGATION_CONFLICT");
+  assert.deepEqual(
+    await (
+      await request("/api/admin/navigation", "GET", undefined, auth)
+    ).json(),
+    saved,
+  );
+});
+test("navigation validation rejects unsafe links, unknown fields, removed essentials and invalid revisions without writes", async () => {
+  const auth = await login(),
+    items = defaultNavigation();
+  const custom = {
+    id: "link-safe",
+    label: "링크",
+    area: "public",
+    href: "https://example.com/",
+    visible: true,
+  };
+  const invalid = [
+    items.slice(1),
+    [...items, items[0]],
+    items.map((item) =>
+      item.id === "home" ? { ...item, visible: false } : item,
+    ),
+    items.map((item) =>
+      item.id === "songs" ? { ...item, href: "/admin/users" } : item,
+    ),
+    items.map((item) =>
+      item.id === "songs" ? { ...item, area: "work" } : item,
+    ),
+    items.map((item) => (item.id === "songs" ? { ...item, label: " " } : item)),
+    items.map((item) =>
+      item.id === "songs" ? { ...item, label: "x".repeat(25) } : item,
+    ),
+    [...items, { ...custom, href: "javascript:alert(1)" }],
+    [...items, { ...custom, href: "data:text/html,test" }],
+    [...items, { ...custom, href: "http://example.com/" }],
+    [...items, { ...custom, href: "https://name:secret@example.com/" }],
+    [...items, { ...custom, id: "__proto__" }],
+    [...items, { ...custom, role: "admin" }],
+    [
+      ...items,
+      ...Array.from({ length: 21 }, (_, index) => ({
+        ...custom,
+        id: "link-" + index,
+      })),
+    ],
+  ];
+  for (const candidate of invalid)
+    assert.equal(
+      (
+        await request(
+          "/api/admin/navigation",
+          "PUT",
+          { items: candidate, expected_revision: 0 },
+          auth,
+        )
+      ).status,
+      422,
+    );
+  for (const expected_revision of [
+    undefined,
+    -1,
+    1.5,
+    "0",
+    Number.MAX_SAFE_INTEGER + 1,
+  ])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/navigation",
+          "PUT",
+          { items, expected_revision },
+          auth,
+        )
+      ).status,
+      422,
+    );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/navigation",
+        "PUT",
+        { items, expected_revision: 0, updated_by: 1 },
+        auth,
+      )
+    ).status,
+    422,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) n FROM site_navigation").first()).n,
+    0,
+  );
 });

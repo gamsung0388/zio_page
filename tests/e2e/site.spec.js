@@ -3,14 +3,24 @@ import { mkdir } from "node:fs/promises";
 test.describe.configure({ mode: "serial" });
 const issues = [];
 async function openAdminMenu(page, label) {
-  await expect(page).toHaveURL(/\/admin$/);
+  if (new URL(page.url()).pathname !== "/admin") await page.goto("/admin");
   await expect(
     page.getByRole("button", { name: /비밀번호 초기화/ }),
   ).toHaveCount(0);
   await page
     .getByRole("navigation", { name: "관리 기능 선택", exact: true })
-    .getByRole("link", { name: label, exact: true })
+    .getByRole("link", {
+      name: ["관리자 관리", "메뉴 관리"].includes(label)
+        ? label
+        : "관리자 관리",
+      exact: true,
+    })
     .click();
+  if (!["관리자 관리", "메뉴 관리"].includes(label))
+    await page
+      .getByRole("navigation", { name: "관리자 메뉴", exact: true })
+      .getByRole("link", { name: label, exact: true })
+      .click();
 }
 test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => issues.push(error.message));
@@ -245,7 +255,7 @@ test("administrator can register another administrator and the new account can l
   await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
   await expect(headerMenu).toBeVisible();
   await headerMenu.click();
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin\/users$/);
   await expect(
     page.locator(".sidebar-item").filter({ hasText: "관리자 관리" }),
   ).toHaveClass(/active/);

@@ -1,5 +1,12 @@
 <script setup>
 import { computed } from "vue";
+import {
+  defaultNavigation,
+  menuPresentation,
+} from "../../shared/navigation.js";
+import { administrationLinks } from "../services/admin-navigation.js";
+import MenuLink from "./MenuLink.vue";
+import Icon from "./Icon.vue";
 import { RouterLink } from "vue-router";
 import { nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
 const props = defineProps({
@@ -7,6 +14,7 @@ const props = defineProps({
   mobileOpen: Boolean,
   preview: Boolean,
   user: Object,
+  menus: Array,
 });
 const emit = defineEmits(["navigate", "close"]);
 const panel = ref(null);
@@ -19,27 +27,37 @@ function resized(event) {
 onMounted(() => media.addEventListener("change", resized));
 let previousFocus,
   previousOverflow = "";
-const items = computed(() => [
-  { id: "home", label: "홈", icon: "⌂", hash: "#/", to: "/" },
-  { id: "songs", label: "노래책자", icon: "♫", hash: "#/songs", to: "/songs" },
-  ...(props.preview || props.user
-    ? [
-        {
-          id: "manage",
-          label: "노래 관리",
-          icon: "✎",
-          hash: "#/manage",
-          to: "/admin/songs",
-        },
-      ]
-    : []),
-  ...(!props.preview && props.user
-    ? [{ id: "schedule", label: "일정 관리", icon: "▦", to: "/admin/schedule" }]
-    : []),
-  ...(!props.preview && props.user
-    ? [{ id: "accounts", label: "관리자 관리", icon: "♙", to: "/admin" }]
-    : []),
-]);
+const items = computed(() =>
+  (props.preview
+    ? defaultNavigation().filter((item) =>
+        ["home", "songs", "manage", "soop"].includes(item.id),
+      )
+    : props.menus || defaultNavigation()
+  )
+    .filter((item) => item.visible)
+    .map(menuPresentation),
+);
+const groups = computed(() =>
+  [
+    {
+      id: "public",
+      title: "지오의 공간",
+      items: items.value.filter((item) => item.area === "public"),
+    },
+    ...(props.user || props.preview
+      ? [
+          {
+            id: "work",
+            title: "운영",
+            items: items.value.filter((item) => item.area === "work"),
+          },
+        ]
+      : []),
+  ].filter((group) => group.items.length),
+);
+const shortcuts = computed(() =>
+  items.value.filter((item) => item.area === "footer"),
+);
 watch(
   () => props.mobileOpen,
   async (open) => {
@@ -113,42 +131,80 @@ onBeforeUnmount(() => {
       ><span class="sidebar-brand-desc">지오의 작은 음악 공간</span></component
     >
     <nav class="sidebar-nav" aria-label="주 메뉴">
-      <component
-        :is="preview ? 'button' : RouterLink"
-        v-for="item in items"
-        :to="preview ? undefined : item.to"
-        active-class=""
-        exact-active-class=""
-        :key="item.id"
-        class="sidebar-item"
-        :class="{ active: current === item.id }"
-        :aria-current="current === item.id ? 'page' : undefined"
-        @click="preview ? emit('navigate', item.hash) : emit('close')"
-        ><span class="sidebar-item-icon" aria-hidden="true">{{
-          item.icon
-        }}</span
-        >{{ item.label }}</component
+      <div
+        v-for="group in groups"
+        :key="group.id"
+        class="sidebar-group"
+        role="group"
+        :aria-labelledby="'sidebar-group-' + group.id"
       >
+        <h2 :id="'sidebar-group-' + group.id" class="sidebar-group-title">
+          {{ group.title }}
+        </h2>
+        <MenuLink
+          v-for="item in group.items"
+          :key="item.id"
+          :item="item"
+          :active="current === item.id"
+          :preview="preview"
+          class="sidebar-item"
+          @navigate="emit('navigate', $event)"
+          @close="emit('close')"
+        />
+      </div>
+      <div
+        v-if="!preview && user"
+        class="sidebar-group"
+        role="group"
+        aria-labelledby="sidebar-group-management"
+      >
+        <h2 id="sidebar-group-management" class="sidebar-group-title">
+          <RouterLink
+            to="/admin"
+            :aria-current="current === 'administration' ? 'page' : undefined"
+            @click="emit('close')"
+            >관리<Icon name="arrow" :size="12"
+          /></RouterLink>
+        </h2>
+        <div class="sidebar-management-children">
+          <MenuLink
+            v-for="item in administrationLinks"
+            :key="item.id"
+            :item="item"
+            :active="current === item.id"
+            class="sidebar-item"
+            @close="emit('close')"
+          />
+        </div>
+      </div>
       <button
         v-if="preview"
         class="sidebar-item sidebar-unavailable"
         disabled
         title="관리자 계정 화면은 기존 서비스에서 유지합니다"
       >
-        <span class="sidebar-item-icon" aria-hidden="true">♙</span
-        ><span>관리자 관리<small>기존 화면 유지</small></span>
+        <Icon name="users" :size="19" /><span
+          >관리자 관리<small>기존 화면 유지</small></span
+        >
       </button>
     </nav>
-    <div class="sidebar-divider"></div>
-    <a
-      class="sidebar-soop"
-      href="https://www.sooplive.com/station/bluejin0129"
-      target="_blank"
-      rel="noopener noreferrer"
-      >SOOP 방송국 ↗</a
-    >
+    <div v-if="shortcuts.length" class="sidebar-divider"></div>
+    <div class="sidebar-shortcuts">
+      <MenuLink
+        v-for="item in shortcuts"
+        :key="item.id"
+        :item="item"
+        class="sidebar-shortcut"
+        :class="{ 'sidebar-soop': item.id === 'soop' }"
+        @close="emit('close')"
+      />
+    </div>
     <div class="sidebar-bottom">
-      <div class="sidebar-mascot" aria-hidden="true">🐼</div>
+      <img
+        class="sidebar-bottom-image"
+        src="/images/zio-reference.png"
+        alt=""
+      />
       <p>오늘도<br />좋은 하루 되세요 <span class="sidebar-sprout">✿</span></p>
       <small>— 지오 —</small>
     </div>
