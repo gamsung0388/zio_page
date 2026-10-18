@@ -1,4 +1,5 @@
 <script setup>
+import { songCover } from "../services/song-cover.js";
 import FieldLabel from "../components/FieldLabel.vue";
 import HelpTooltip from "../components/HelpTooltip.vue";
 import SongSaveVisibility from "../components/SongSaveVisibility.vue";
@@ -129,7 +130,7 @@ const previewSong = computed(() => ({
   level: Number(form.level),
   practiceStatus: form.practiceStatus,
   balloonCount: Number(form.balloonCount),
-  cover: form.cover || "/images/covers/night.svg",
+  cover: songCover(form),
 }));
 
 function onFileChange(event) {
@@ -185,7 +186,7 @@ async function submit() {
     level: Number(form.level),
     practiceStatus: form.practiceStatus,
     balloonCount: Number(form.balloonCount),
-    cover: form.cover || "/images/covers/night.svg",
+    cover: songCover(form),
     description: form.description.trim(),
     privateMemo: form.privateMemo.trim(),
     language: form.language.trim(),

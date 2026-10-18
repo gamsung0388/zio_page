@@ -1,7 +1,7 @@
 :root {
-  --management-line: #e2e8df;
-  --management-muted: #63735c;
-  --management-wash: #edf3e6;
+  --management-line: var(--border);
+  --management-muted: var(--muted);
+  --management-wash: var(--lime-100);
 }
 .management-page {
   max-width: 1160px;

@@ -54,6 +54,11 @@ const router = createRouter({
       meta: { title: "관리", admin: true },
     },
     {
+      path: "/admin/appearance",
+      component: () => import("../pages/AdminAppearance.vue"),
+      meta: { title: "테마 설정", admin: true },
+    },
+    {
       path: "/admin/menus",
       component: () => import("../pages/AdminMenus.vue"),
       meta: { title: "메뉴 관리", admin: true },

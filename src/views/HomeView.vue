@@ -39,7 +39,7 @@ const emit = defineEmits(["navigate", "open", "retry"]);
     </div>
     <div class="hero-image-wrap">
       <img
-        src="/images/zio-reference.png"
+        src="/images/themes/zio-cutout-v1.webp"
         alt="검은 긴 머리와 초록빛 눈의 지오 캐릭터"
       />
     </div>

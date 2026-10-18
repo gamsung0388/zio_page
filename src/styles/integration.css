@@ -1,7 +1,7 @@
 /* Shared UI with the existing account, filters and CSV components. */
 .integrated-app {
-  color: #21382c;
-  background: #f7f8f4;
+  color: var(--ink);
+  background: var(--canvas);
 }
 .integrated-app .container {
   width: 100%;
@@ -24,8 +24,8 @@
   color: #f3f8f2;
 }
 .integrated-app .sidebar .sidebar-item.active {
-  background: rgba(157, 218, 115, 0.22);
-  color: #d5f4bd;
+  background: color-mix(in srgb, var(--green-500) 22%, transparent);
+  color: var(--sidebar-accent);
 }
 .integrated-app .page-heading {
   margin-bottom: 25px;
@@ -37,7 +37,7 @@
 }
 .integrated-app .page-heading p {
   font-size: 13px;
-  color: #627460;
+  color: var(--muted);
 }
 .integrated-app .heading-art {
   display: none;
@@ -48,7 +48,7 @@
 }
 .integrated-app .filters-panel,
 .integrated-app .admin-tools {
-  border-color: #e5eae3;
+  border-color: var(--border);
   background: #fff;
   border-radius: 14px;
 }
@@ -78,7 +78,7 @@
   min-height: 0;
 }
 .integrated-app .login-card {
-  border-color: #e5eae3;
+  border-color: var(--border);
   border-radius: 20px;
   max-width: 480px;
   margin: auto;
@@ -90,7 +90,7 @@
   bottom: 24px;
   z-index: 100;
   max-width: min(480px, calc(100vw - 32px));
-  background: #edf7e4;
+  background: var(--lime-100);
   border: 1px solid #c4dcb6;
   color: #244d2b;
   box-shadow: 0 6px 24px #11372620;
@@ -104,19 +104,19 @@
   flex: 0 0 30px;
 }
 .integrated-app .modal {
-  color: #21382c;
+  color: var(--ink);
 }
 .integrated-app .admin-menu-card {
-  border-color: #e5eae3;
+  border-color: var(--border);
   border-radius: 16px;
 }
 .integrated-app .admin-menu-icon {
-  background: #edf7e4;
-  color: #276443;
+  background: var(--lime-100);
+  color: var(--green-700);
 }
 .integrated-app .admin-tabs a.active {
-  background: #edf7e4;
-  color: #276443;
+  background: var(--lime-100);
+  color: var(--green-700);
 }
 .integrated-app .song-grid {
   margin-top: 16px;
@@ -136,7 +136,7 @@
   aspect-ratio: 1;
 }
 .integrated-app .detail-top {
-  border: 1px solid #e5eae3;
+  border: 1px solid var(--border);
 }
 .integrated-app .detail-stats {
   display: block;
@@ -144,7 +144,7 @@
 }
 .managed-song {
   min-width: 0;
-  border: 1px solid #e5eae3;
+  border: 1px solid var(--border);
   border-radius: 14px;
   background: white;
   overflow: hidden;
@@ -164,7 +164,7 @@
   font-size: 12px;
 }
 .song-management-actions button {
-  border: 1px solid #dfe7dd;
+  border: 1px solid var(--border);
   background: #fff;
   border-radius: 6px;
   padding: 7px 8px;
@@ -172,7 +172,7 @@
   min-height: 36px;
 }
 .song-management-actions button:hover {
-  background: #edf7e4;
+  background: var(--lime-100);
 }
 .song-management-actions .delete-song {
   color: #a34740;
@@ -188,7 +188,7 @@
 }
 .session-name {
   font-size: 12px;
-  color: #627460;
+  color: var(--muted);
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;

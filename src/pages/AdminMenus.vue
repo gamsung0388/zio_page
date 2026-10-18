@@ -10,6 +10,7 @@ import {
   menuPresentation,
   moveMenu,
 } from "../../shared/navigation.js";
+import SiteSettingsTabs from "../components/SiteSettingsTabs.vue";
 import Icon from "../components/Icon.vue";
 import Notice from "../components/Notice.vue";
 import DraftRecovery from "../components/DraftRecovery.vue";
@@ -101,6 +102,7 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
       <RouterLink to="/admin">관리</RouterLink
       ><Icon name="arrow" :size="13" /><span>메뉴 관리</span>
     </div>
+    <SiteSettingsTabs />
     <header class="management-heading">
       <div>
         <span class="management-kicker">지오의 공간을 정리해요</span>

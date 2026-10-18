@@ -1,6 +1,6 @@
 .integrated-app .sidebar {
   padding: 28px 17px 20px;
-  background: #153b29;
+  background: var(--green-900);
 }
 .integrated-app .sidebar-brand {
   padding: 4px 13px;

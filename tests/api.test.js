@@ -151,6 +151,7 @@ beforeEach(async () => {
     [
       "DELETE FROM song_import_jobs",
       "DELETE FROM site_navigation",
+      "DELETE FROM site_settings",
       "DELETE FROM admin_schedule_events",
       "DELETE FROM admin_schedule_weeks",
       "DELETE FROM songs",
@@ -2533,5 +2534,131 @@ test("CSV preview recovers a completed operation for the same owner without impo
   assert.equal(
     (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
     1,
+  );
+});
+
+test("appearance changes require administrator, CSRF, same origin and a changed initial password", async () => {
+  const path = "/api/admin/appearance",
+    body = { theme: "garden", expected_revision: 0 };
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, "PUT", body)).status, 401);
+  const auth = await login();
+  assert.equal(
+    (await request(path, "PUT", body, { ...auth, csrfToken: "" })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request(path, "PUT", body, auth, {
+        Origin: "https://elsewhere.invalid",
+      })
+    ).status,
+    403,
+  );
+  await db.prepare("UPDATE admin_users SET must_change_password=1").run();
+  assert.equal((await request(path, "PUT", body, auth)).status, 403);
+  assert.deepEqual(await (await request("/api/appearance")).json(), {
+    theme: "forest",
+  });
+  assert.equal(
+    (
+      await db
+        .prepare(
+          "SELECT COUNT(*) n FROM site_settings WHERE key='appearance.v1'",
+        )
+        .first()
+    ).n,
+    0,
+  );
+});
+test("appearance uses atomic revisions and exposes only the selected preset publicly", async () => {
+  const auth = await login(),
+    path = "/api/admin/appearance";
+  assert.deepEqual(await (await request(path, "GET", undefined, auth)).json(), {
+    theme: "forest",
+    revision: 0,
+    updated_at: null,
+  });
+  await db
+    .prepare(
+      "INSERT INTO site_settings(key,value) VALUES ('other-setting','keep')",
+    )
+    .run();
+  const winners = await Promise.all(
+    ["garden", "starlight"].map((theme) =>
+      request(path, "PUT", { theme, expected_revision: 0 }, auth),
+    ),
+  );
+  assert.deepEqual(winners.map((r) => r.status).sort(), [200, 409]);
+  const saved = await winners.find((r) => r.status === 200).json();
+  assert.equal(saved.revision, 1);
+  const publicResponse = await request("/api/appearance");
+  assert.deepEqual(await publicResponse.json(), { theme: saved.theme });
+  assert.match(publicResponse.headers.get("Cache-Control"), /no-store/);
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        { theme: "forest", expected_revision: 0 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        { theme: "forest", expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        { theme: "garden", expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await db
+        .prepare("SELECT value FROM site_settings WHERE key='other-setting'")
+        .first()
+    ).value,
+    "keep",
+  );
+});
+test("appearance rejects injected settings and malformed revisions without modifying stored values", async () => {
+  const auth = await login(),
+    path = "/api/admin/appearance";
+  for (const body of [
+    { theme: "url(javascript:alert(1))", expected_revision: 0 },
+    { theme: "forest", expected_revision: 0, css: "anything" },
+    { theme: "forest", expected_revision: -1 },
+    { theme: "forest", expected_revision: "0" },
+    { theme: "forest" },
+    { theme: null, expected_revision: 0 },
+  ]) {
+    const response = await request(path, "PUT", body, auth);
+    assert.ok([400, 422].includes(response.status), await response.text());
+  }
+  assert.equal(
+    (
+      await db
+        .prepare(
+          "SELECT COUNT(*) n FROM site_settings WHERE key='appearance.v1'",
+        )
+        .first()
+    ).n,
+    0,
   );
 });

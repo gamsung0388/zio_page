@@ -8,6 +8,7 @@ import { notification } from "./services/notifications.js";
 import { activeNavigation } from "./services/admin-navigation.js";
 import { useSiteNavigation } from "./services/useSiteNavigation.js";
 import AppSidebar from "./components/AppSidebar.vue";
+import SceneBanner from "./components/SceneBanner.vue";
 import AppHeader from "./components/AppHeader.vue";
 const route = useRoute(),
   router = useRouter(),
@@ -114,6 +115,13 @@ onBeforeUnmount(() => {
             ×
           </button>
         </div>
+        <SceneBanner
+          v-if="
+            route.path === '/songs' ||
+            /^\/songs\/[1-9]\d*$/.test(route.path) ||
+            /^\/admin\/songs(?:\/new|\/[1-9]\d*\/edit)?$/.test(route.path)
+          "
+        />
         <RouterView :key="route.path" />
       </main>
       <footer class="site-footer">

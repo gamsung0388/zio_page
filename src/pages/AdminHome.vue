@@ -63,7 +63,7 @@ const work = computed(() =>
           <span class="management-feature-detail">{{
             entry.id === "accounts"
               ? "관리자 목록 · 등록 · 비밀번호"
-              : "이름 · 순서 · 표시 · 링크 추가"
+              : "이름 · 순서 · 링크 추가 · 테마"
           }}</span></RouterLink
         >
       </nav>

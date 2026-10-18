@@ -1,3 +1,4 @@
+import { songCover } from "./song-cover.js";
 // Pure mappings only. This module does not call APIs or persist data.
 import {
   SONG_TEXT_FIELDS,
@@ -25,7 +26,7 @@ export function toSongView(song, { admin = false } = {}) {
     isPublic: Boolean(song.is_public),
     createdAt: song.created_at,
     updatedAt: song.updated_at,
-    cover: "",
+    cover: songCover({ genre: song.genre }),
     links: [],
   };
   if (admin) {

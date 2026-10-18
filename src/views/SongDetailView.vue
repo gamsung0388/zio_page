@@ -92,7 +92,11 @@ const emit = defineEmits(["navigate", "edit", "delete"]);
       <div class="card aside-card">
         <span class="eyebrow">ZIO'S SONGBOOK</span>
         <h2>지오의 노래 한 곡 ♡</h2>
-        <img class="aside-zio" src="/images/zio-reference.png" alt="지오" />
+        <img
+          class="aside-zio"
+          src="/images/themes/zio-cutout-v1.webp"
+          alt="지오"
+        />
         <p>좋은 노래를 함께 나눠요.<br />오늘도 지오와 즐거운 시간!</p>
       </div>
       <div class="card aside-card aside-info">

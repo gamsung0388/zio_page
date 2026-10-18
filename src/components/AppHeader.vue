@@ -1,4 +1,5 @@
 <script setup>
+import ThemePicker from "./ThemePicker.vue";
 import { RouterLink } from "vue-router";
 defineProps({
   title: { type: String, default: "지오의 작은 음악 공간" },
@@ -24,6 +25,7 @@ const emit = defineEmits(["menu", "navigate", "logout"]);
       <span class="topbar-dot"></span>{{ title }}
     </div>
     <div class="topbar-right">
+      <ThemePicker v-if="!preview" />
       <span v-if="preview" class="demo-label">UI PREVIEW</span
       ><template v-else
         ><span v-if="user" class="session-name">{{

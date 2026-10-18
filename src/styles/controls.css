@@ -4,9 +4,9 @@
   min-height: 44px;
 }
 .integrated-app .button.primary {
-  background: #1b4b32;
+  background: var(--green-800);
   color: #fff;
-  border-color: #1b4b32;
+  border-color: var(--green-800);
 }
 .integrated-app .field {
   margin-bottom: 18px;
@@ -22,7 +22,7 @@
 .integrated-app .field select,
 .integrated-app .field textarea {
   min-height: 45px;
-  border: 1px solid #dfe7dd;
+  border: 1px solid var(--border);
   border-radius: 9px;
   background: #fbfcfa;
   width: 100%;
@@ -89,7 +89,7 @@
   font-size: 12px;
 }
 .btn-lime {
-  background: #ccebaa;
+  background: var(--lime-300);
   border: 1px solid #c4e69f;
   color: #24472c;
 }

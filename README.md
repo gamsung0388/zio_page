@@ -10,7 +10,8 @@
 
 - 공개: 홈, 노래책자·검색·필터·상세, 노래책자 사용 가이드.
 - 운영: 노래 관리(등록·수정·삭제·CSV), 일정 달력·목록, 주간 이미지 메모·이미지 출력·사용 가이드.
-- 관리: 관리자 관리(계정 등록·비밀번호 초기화/변경), 메뉴 관리(이름·순서·표시·새 HTTPS 링크).
+- 관리: 관리자 관리(계정 등록·비밀번호 초기화/변경), 메뉴 관리(이름·순서·표시·새 HTTPS 링크·기본 테마).
+- 화면 상단의 테마 버튼으로 방문자 개인 테마를 선택합니다. [테마 사용·관리 가이드](docs/appearance-guide.md)를 참고하세요.
 - PC 관리자 노래 목록은 목록/카드를 선택하고 모바일·태블릿은 카드를 사용합니다. 입력 항목의 ? 도움말과 저장 버튼 옆 공개 여부를 확인하세요. 지오 메모는 관리자 전용입니다.
 - 여러 날 일정은 달력에서 이어지는 막대로 표시합니다. 일정 삭제 버튼은 수정창 하단에 있습니다. 목록에서도 등록 날짜를 직접 선택합니다.
 
@@ -35,21 +36,21 @@ npm run dev
 
 ## 명령
 
-| 명령                               | 기능                                                  |
-| ---------------------------------- | ----------------------------------------------------- |
-| `npm run dev`                      | Vite + 실제 workerd 런타임 + 로컬 D1, 5173 포트       |
-| `npm run build`                    | Vue 정적 파일과 Worker 프로덕션 빌드                  |
-| `npm run preview`                  | 빌드 결과 로컬 확인                                   |
-| `npm test`                         | Node 테스트 + Miniflare/workerd/D1 통합 테스트        |
-| `npm run test:e2e`                 | 설치된 Microsoft Edge로 반응형·관리자 브라우저 테스트 |
-| `npm run db:migrate:local`         | 로컬 DB migration                                     |
-| `npm run db:migrate:remote`        | 실제 D1 ID 확인 후 원격 migration                     |
-| `npm run admin:create`             | 로컬 관리자 생성                                      |
-| `npm run admin:create -- --remote` | 원격 관리자 생성(Cloudflare 인증 필요)                |
-| `npm run admin:revoke`             | 지정한 로컬 관리자의 모든 세션 폐기                   |
-| `npm run admin:revoke -- --remote` | 지정한 원격 관리자의 모든 세션 폐기                   |
-| `npm run backup:verify -- --remote` | 운영 SQL 백업과 별도 로컬 복구 검증 |
-| `npm run deploy`                   | 실제 D1 ID 확인 → 빌드 → Cloudflare 배포              |
+| 명령                                | 기능                                                  |
+| ----------------------------------- | ----------------------------------------------------- |
+| `npm run dev`                       | Vite + 실제 workerd 런타임 + 로컬 D1, 5173 포트       |
+| `npm run build`                     | Vue 정적 파일과 Worker 프로덕션 빌드                  |
+| `npm run preview`                   | 빌드 결과 로컬 확인                                   |
+| `npm test`                          | Node 테스트 + Miniflare/workerd/D1 통합 테스트        |
+| `npm run test:e2e`                  | 설치된 Microsoft Edge로 반응형·관리자 브라우저 테스트 |
+| `npm run db:migrate:local`          | 로컬 DB migration                                     |
+| `npm run db:migrate:remote`         | 실제 D1 ID 확인 후 원격 migration                     |
+| `npm run admin:create`              | 로컬 관리자 생성                                      |
+| `npm run admin:create -- --remote`  | 원격 관리자 생성(Cloudflare 인증 필요)                |
+| `npm run admin:revoke`              | 지정한 로컬 관리자의 모든 세션 폐기                   |
+| `npm run admin:revoke -- --remote`  | 지정한 원격 관리자의 모든 세션 폐기                   |
+| `npm run backup:verify -- --remote` | 운영 SQL 백업과 별도 로컬 복구 검증                   |
+| `npm run deploy`                    | 실제 D1 ID 확인 → 빌드 → Cloudflare 배포              |
 
 E2E는 `.local/e2e/state`에 독립 DB를 사용하고 실행할 때마다 그 **테스트 DB만 초기화**합니다. 임시 관리자 비밀번호는 실행 중 메모리/자식 프로세스 환경에만 보관합니다. 일반 개발 DB(`.wrangler/state`)와 원격 D1은 사용하지 않습니다. Edge가 설치된 Windows를 기준으로 검증했습니다.
 

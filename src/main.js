@@ -6,4 +6,7 @@ import "./assets/main.css";
 import "./styles/integration.css";
 import "./styles/controls.css";
 import "./styles/navigation.css";
+import "./styles/themes.css";
+import { startAppearance } from "./services/appearance.js";
+startAppearance();
 createApp(App).use(router).mount("#app");

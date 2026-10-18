@@ -155,6 +155,19 @@ test("PNG and JPEG keep 1672x941 dimensions across desktop, mobile and zoom", as
   expect(desktop.file.suggestedFilename()).toBe("zio-weekly-2026-10-12.png");
   await mkdir(".local/schedule-review", { recursive: true });
   await desktop.file.saveAs(".local/schedule-review/schedule.png");
+  for (const name of [/별빛 음악방/, /햇살 정원/]) {
+    await page
+      .getByRole("button", { name: "화면 테마 선택", exact: true })
+      .click();
+    const picker = page.getByRole("dialog", {
+      name: "나의 음악 공간",
+      exact: true,
+    });
+    await picker.getByRole("radio", { name }).check();
+    await picker.getByRole("button", { name: "선택 완료" }).click();
+    const themed = await download(page);
+    expect(themed.bytes.equals(desktop.bytes)).toBe(true);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
   const mobile = await download(page);
   expect(mobile.bytes.equals(desktop.bytes)).toBe(true);

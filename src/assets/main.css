@@ -6,23 +6,11 @@
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
-  color: #21382c;
-  background: #f7f8f4;
+  color: var(--ink);
+  background: var(--canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --green-900: #113726;
-  --green-800: #1d4d33;
-  --green-700: #276443;
-  --green-500: #8fc36a;
-  --lime-300: #ccebaa;
-  --lime-100: #edf7e4;
-  --canvas: #f7f8f4;
-  --ink: #1d3126;
-  --muted: #788379;
-  --border: #e5eae3;
-  --white: #fff;
-  --shadow: 0 10px 36px rgba(29, 58, 35, 0.045);
 }
 * {
   box-sizing: border-box;
@@ -334,9 +322,9 @@ p {
   transform: translateY(-1px);
 }
 .btn-primary {
-  background: #1b4b32;
+  background: var(--green-800);
   color: #fff;
-  border-color: #1b4b32;
+  border-color: var(--green-800);
 }
 .btn-primary:hover {
   background: #276544;
@@ -1079,7 +1067,7 @@ p {
 .field textarea,
 .link-input-row input,
 .link-input-row select {
-  border: 1px solid #dfe7dd;
+  border: 1px solid var(--border);
   background: #fbfcfa;
   border-radius: 9px;
   min-height: 45px;
@@ -1875,7 +1863,7 @@ p {
   left: 16px;
   z-index: 200;
   padding: 12px 18px;
-  background: #113726;
+  background: var(--green-900);
   color: #fff;
   border-radius: 8px;
 }
@@ -1915,12 +1903,12 @@ p {
 .rating-input p,
 .field input::placeholder,
 .field textarea::placeholder {
-  color: #627460;
+  color: var(--muted);
 }
 .form-section-heading span,
 .upload-box small,
 .private-indicator {
-  color: #627460;
+  color: var(--muted);
 }
 .field:has(.upload-box) {
   margin-top: 24px;

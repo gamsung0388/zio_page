@@ -8,17 +8,11 @@
     "Segoe UI",
     "Malgun Gothic",
     sans-serif;
-  color: #273b31;
-  background: #faf9f4;
+  color: var(--ink);
+  background: var(--canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --green: #235c46;
-  --green-light: #eaf0e5;
-  --ink: #273b31;
-  --muted: #738077;
-  --border: #e3e7dd;
-  --paper: #fffef9;
 }
 button:disabled {
   cursor: not-allowed;
@@ -576,7 +570,7 @@ strong {
   color: #7b8778;
 }
 .guide-card {
-  background: #fffef9;
+  background: var(--paper);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 23px 24px;
