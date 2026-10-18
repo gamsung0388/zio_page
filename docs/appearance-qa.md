@@ -5,7 +5,7 @@
 ## 확인한 결과
 
 - 단위·실제 D1 API 통합 테스트: 114개 통과.
-- 전체 브라우저 회귀 테스트: 82개 통과. 최종 테마 보완 후 해당 10개 중 9개 통과 및 충돌 안내 집중 재검증 통과. 최종 소스 전체는 GitHub Actions에서도 확인합니다.
+- 전체 브라우저 회귀 테스트: 82개 통과. 최종 소스에서 GitHub Actions의 Chromium 전체 재검증도 통과했습니다.
 - 기존 참고 UI 테스트: 6개 통과. 고유 테스트 총 202개.
 - 저장 충돌 후 다른 테마를 선택하거나 선택 취소해도 최신 설정 불러오기를 계속 제공합니다.
 - 별빛·햇살 테마에서 일정 PNG 내보내기 결과가 기본 테마와 바이트 단위로 같으며, 모바일·확대·JPEG도 기존 크기를 유지합니다.
@@ -25,3 +25,62 @@ shared/appearance.js, server/repositories/appearance.js, server/routes/appearanc
 ## 현재 범위
 
 기본 커버는 장르별 일러스트입니다. 실제 앨범 조회·이미지 업로드, 게시판/CMS, 즐겨찾기, SOOP API는 이 변경에 포함하지 않습니다. 운영 사이트에서 관리자 화면의 시각 검증은 읽기 전용 테스트 응답으로 수행하고 실제 관리자 API의 비인증 차단을 별도 확인합니다. 운영 콘텐츠를 만들거나 바꾸지 않습니다.
+
+## 배포 확인
+
+- 운영 주소: https://zio-home.com (기본 workers.dev 주소도 확인).
+- 배포 소스: 882ae1a81bd3a42d54f7599691c5c87f85c6636a.
+- Cloudflare Worker 버전: 27217132-c995-4abf-b6ba-028d93476fb0.
+- 독립 검증: https://github.com/gamsung0388/zio_page/actions/runs/39120727154 — 단위/API 114개, 브라우저 82개, 참고 UI 6개 및 운영 빌드 성공.
+- 운영 파일 83개가 로컬 빌드와 SHA-256 기준 일치합니다. DB 상태 ready, 비인증 관리자 접근 401, 관리자 가이드 로그인 복귀 정상.
+- 운영 화면 오류·Vue 경고·앱 CSP 위반 0건. 실제 데이터 로딩을 기다린 홈 화면도 세 가지 테마 × 다섯 크기에서 확인했습니다. 방문자 선택 유지·기본값 복귀·관리자 임시 미리보기 정상.
+- 운영 쓰기 0건. 관리자 화면은 GET 응답만 격리 대체하여 검증했으며 실제 서비스 데이터·계정·기본 테마를 변경하지 않았습니다.
+- 테마 이미지 장기 캐시와 공개 노래 API 200을 확인했습니다.
+- 기존 외부 설정 관찰: HTTP URL은 아직 200이며 Location은 없습니다. Cloudflare 자동 분석 스크립트 차단 25건은 기존 CSP 설정에 따른 것으로 앱 오류와 분리했습니다. 이 작업에서 도메인 설정·보안 헤더 정책을 완화하지 않았습니다.
+- 이미지 원본과 웹용 파일/생성 프롬프트는 appearance-guide.md에 기록했습니다.
+
+## 변경 파일 목록
+
+- README.md
+- docs/appearance-guide.md
+- docs/appearance-qa.md
+- public/_headers
+- public/images/themes/forest-room-v1.webp
+- public/images/themes/zio-cutout-v1.webp
+- server/repositories/appearance.js
+- server/routes/admin.js
+- server/routes/appearance.js
+- server/routes/public.js
+- shared/appearance.js
+- src/App.vue
+- src/assets/main.css
+- src/components/AppHeader.vue
+- src/components/SceneBanner.vue
+- src/components/SiteSettingsTabs.vue
+- src/components/ThemeChoices.vue
+- src/components/ThemePicker.vue
+- src/main.js
+- src/pages/AdminAppearance.vue
+- src/pages/AdminHome.vue
+- src/pages/AdminMenus.vue
+- src/router/index.js
+- src/services/admin-navigation.js
+- src/services/appearance.js
+- src/services/return-to.js
+- src/services/song-adapter.js
+- src/services/song-cover.js
+- src/styles/controls.css
+- src/styles/integration.css
+- src/styles/main.css
+- src/styles/management.css
+- src/styles/navigation.css
+- src/styles/themes.css
+- src/ui-preview/main.js
+- src/views/HomeView.vue
+- src/views/SongDetailView.vue
+- src/views/SongFormView.vue
+- tests/api.test.js
+- tests/appearance.test.js
+- tests/e2e/appearance.spec.js
+- tests/e2e/prepare.js
+- tests/e2e/schedule.spec.js
