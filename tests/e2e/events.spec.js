@@ -118,16 +118,47 @@ test("time controls and independent events support two schedules on one day and 
   page.on("request", (request) => {
     if (request.method() === "DELETE") deleteRequests++;
   });
-  page.once("dialog", (prompt) => prompt.dismiss());
   await deleteButton.click();
+  let confirmation = page.getByRole("dialog", {
+    name: "일정을 삭제할까요?",
+    exact: true,
+  });
+  await expect(confirmation).toContainText("노래 방송 A");
+  await confirmation.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(deleteButton).toBeFocused();
   await expect(dialog).toBeVisible();
   expect(deleteRequests).toBe(0);
   expect(
     (await page.request.get("/api/admin/schedule-events/" + first.id)).status(),
   ).toBe(200);
-  page.once("dialog", (dialog) => dialog.accept());
-  await dialog
-    .getByRole("button", { name: "이 일정 삭제", exact: true })
+  await deleteButton.click();
+  confirmation = page.getByRole("dialog", {
+    name: "일정을 삭제할까요?",
+    exact: true,
+  });
+  for (const size of [
+    { width: 1920, height: 1080 },
+    { width: 1440, height: 900 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 },
+    { width: 360, height: 800 },
+  ]) {
+    await page.setViewportSize(size);
+    expect(
+      await confirmation.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await expect(
+      confirmation.getByRole("button", { name: "삭제하기", exact: true }),
+    ).toBeVisible();
+  }
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toHaveCount(0);
+  expect(deleteRequests).toBe(0);
+  await deleteButton.click();
+  await confirmation
+    .getByRole("button", { name: "삭제하기", exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
   await expect(

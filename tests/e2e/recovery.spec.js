@@ -108,9 +108,15 @@ test("song expiration restores incomplete fields and private memo; logout can be
   page,
 }) => {
   await page.goto("/admin/songs/new");
-  await page.getByLabel("곡명").fill("노래 초안 복구");
-  await page.getByLabel("아티스트").fill("검증");
-  await page.getByLabel("지오 메모").fill("PRIVATE_RECOVERY_ONLY");
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("노래 초안 복구");
+  await page
+    .getByRole("textbox", { name: "아티스트", exact: true })
+    .fill("검증");
+  await page
+    .getByRole("textbox", { name: "지오 메모", exact: true })
+    .fill("PRIVATE_RECOVERY_ONLY");
   await page
     .getByRole("button", { name: "숙련도 3단계 선택", exact: true })
     .click();
@@ -128,13 +134,15 @@ test("song expiration restores incomplete fields and private memo; logout can be
   await login(page, false);
   await expect(page).toHaveURL(/\/admin\/songs\/new$/);
   await page.getByRole("button", { name: "초안 복구", exact: true }).click();
-  await expect(page.getByLabel("지오 메모")).toHaveValue(
-    "PRIVATE_RECOVERY_ONLY",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "지오 메모", exact: true }),
+  ).toHaveValue("PRIVATE_RECOVERY_ONLY");
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs\/new$/);
-  await expect(page.getByLabel("곡명")).toHaveValue("노래 초안 복구");
+  await expect(
+    page.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("노래 초안 복구");
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/login$/);
@@ -337,7 +345,8 @@ test("another administrator cannot see a previous account draft in the same brow
 test("Korean midnight refreshes today without moving the selected month or erasing edits", async ({
   page,
 }) => {
-  await page.clock.install({ time: new Date("2026-10-31T14:59:58Z") });
+  await page.clock.install({ time: new Date("2026-10-31T14:59:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-31T14:59:58Z"));
   await page.goto("/admin/schedule/notes?month=2026-10");
   await expect(page.locator(".calendar-day.is-today")).toHaveAttribute(
     "aria-label",
@@ -421,16 +430,28 @@ test("unfinished song inputs recover after reload, including an empty balloon co
   page,
 }) => {
   await page.goto("/admin/songs/new");
-  await page.getByLabel("곡명").fill("입력 중인 곡");
-  await page.getByLabel("신청 풍 개수").fill("");
-  await page.getByLabel("지오 메모").fill("PRIVATE_INCOMPLETE_DRAFT");
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("입력 중인 곡");
+  await page
+    .getByRole("spinbutton", { name: "신청 풍 개수", exact: true })
+    .fill("");
+  await page
+    .getByRole("textbox", { name: "지오 메모", exact: true })
+    .fill("PRIVATE_INCOMPLETE_DRAFT");
   page.once("dialog", (dialog) => dialog.accept());
   await page.reload();
   await page.getByRole("button", { name: "초안 복구", exact: true }).click();
-  await expect(page.getByLabel("곡명")).toHaveValue("입력 중인 곡");
-  await expect(page.getByLabel("신청 풍 개수")).toHaveValue("");
-  await expect(page.getByLabel("지오 메모")).toHaveValue(
-    "PRIVATE_INCOMPLETE_DRAFT",
-  );
-  await expect(page.getByLabel("아티스트")).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("입력 중인 곡");
+  await expect(
+    page.getByRole("spinbutton", { name: "신청 풍 개수", exact: true }),
+  ).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "지오 메모", exact: true }),
+  ).toHaveValue("PRIVATE_INCOMPLETE_DRAFT");
+  await expect(
+    page.getByRole("textbox", { name: "아티스트", exact: true }),
+  ).toHaveValue("");
 });

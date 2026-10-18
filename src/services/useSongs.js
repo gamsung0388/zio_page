@@ -2,6 +2,10 @@ import { ref, reactive, computed, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "./api.js";
 import { useAsyncResource } from "./useAsyncResource.js";
+import {
+  songListHasFilters,
+  songListEmptyInfo,
+} from "../../shared/song-list.js";
 import { pageCount } from "../../shared/pagination.js";
 export function useSongs(admin = false) {
   const route = useRoute(),
@@ -9,7 +13,9 @@ export function useSongs(admin = false) {
   const items = ref([]),
     total = ref(0);
   const resource = useAsyncResource(null);
-  const { loading, error } = resource;
+  const { error } = resource;
+  const correcting = ref(false);
+  const loading = computed(() => resource.loading.value || correcting.value);
   const filters = reactive({});
   const facets = reactive({ genres: [], languages: [] });
   let timer,
@@ -17,7 +23,11 @@ export function useSongs(admin = false) {
   const page = computed(() => Number(filters.page) || 1);
   const pageSize = computed(() => Number(filters.page_size) || 20);
   const pages = computed(() => pageCount(total.value, pageSize.value));
+  const hasFilters = computed(() => songListHasFilters(filters, admin));
+  const emptyInfo = computed(() => songListEmptyInfo(hasFilters.value, admin));
   async function load(refreshFacets = false) {
+    const requestedPage = page.value,
+      requestedSize = pageSize.value;
     const params = new URLSearchParams(
       Object.entries(filters).filter(([, v]) => v !== "" && v !== undefined),
     );
@@ -26,13 +36,26 @@ export function useSongs(admin = false) {
       api(`${admin ? "/admin" : ""}/songs?${params}`, { signal }),
     );
     if (data) {
-      items.value = data.items;
-      total.value = data.pagination.total;
       if (data.filters) {
         Object.assign(facets, data.filters);
         facetsLoaded = true;
       }
-    }
+      total.value = data.pagination.total;
+      const validPage = Math.min(
+        requestedPage,
+        pageCount(total.value, requestedSize),
+      );
+      if (validPage !== requestedPage) {
+        correcting.value = true;
+        items.value = [];
+        await router.replace({
+          query: { ...route.query, page: String(validPage) },
+        });
+        return;
+      }
+      correcting.value = false;
+      items.value = data.items;
+    } else if (error.value) correcting.value = false;
   }
   watch(
     () => route.query,
@@ -91,6 +114,8 @@ export function useSongs(admin = false) {
   return {
     items,
     total,
+    hasFilters,
+    emptyInfo,
     loading,
     error,
     filters,

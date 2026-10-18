@@ -74,8 +74,12 @@ test("preview search, public separation, shared editor and mobile menu without A
   await page
     .getByRole("button", { name: "＋ 곡 등록하기", exact: true })
     .click();
-  await page.getByLabel("곡명", { exact: false }).fill("화면 확인용 QA 곡");
-  await page.getByLabel("아티스트", { exact: false }).fill("UI QA");
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("화면 확인용 QA 곡");
+  await page
+    .getByRole("textbox", { name: "아티스트", exact: true })
+    .fill("UI QA");
   await page.getByRole("button", { name: "등록하기", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("숙련도");
   await page
@@ -85,25 +89,31 @@ test("preview search, public separation, shared editor and mobile menu without A
     .locator(".segment-group label")
     .filter({ hasText: "잠시 보류" })
     .click();
-  await page.getByLabel("신청 풍 개수", { exact: false }).fill("7");
   await page
-    .getByLabel("지오 메모", { exact: false })
+    .getByRole("spinbutton", { name: "신청 풍 개수", exact: true })
+    .fill("7");
+  await page
+    .getByRole("textbox", { name: "지오 메모", exact: true })
     .fill("UI_REVIEW_PRIVATE");
-  await page.getByLabel("공개 상태", { exact: true }).selectOption("false");
+  await page
+    .getByRole("combobox", { name: "공개 상태", exact: true })
+    .selectOption("false");
   await page.getByRole("button", { name: "등록하기", exact: true }).click();
   await expect(page.locator("h1")).toHaveText("화면 확인용 QA 곡");
   await expect(page.locator("body")).not.toContainText("UI_REVIEW_PRIVATE");
   await page.getByRole("button", { name: "✎ 수정하기", exact: true }).click();
-  await expect(page.getByLabel("지오 메모", { exact: false })).toHaveValue(
-    "UI_REVIEW_PRIVATE",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "지오 메모", exact: true }),
+  ).toHaveValue("UI_REVIEW_PRIVATE");
   await page
     .getByRole("button", { name: "숙련도 5단계 선택", exact: true })
     .click();
   await expect(
     page.getByRole("radio", { name: "잠시 보류", exact: true }),
   ).toBeChecked();
-  await page.getByLabel("곡명", { exact: false }).fill("수정한 QA 곡");
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("수정한 QA 곡");
   await page.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(page.locator("h1")).toHaveText("수정한 QA 곡");
   await page.setViewportSize({ width: 360, height: 800 });

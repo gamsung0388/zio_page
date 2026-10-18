@@ -67,6 +67,21 @@ async function create(auth, data = song()) {
   assert.equal(response.status, 201, await response.clone().text());
   return response.json();
 }
+async function csvImport(auth, text, options = {}) {
+  const preview =
+    options.preview ||
+    (await (
+      await request("/api/admin/songs/import/preview", "POST", text, auth, {
+        "Content-Type": "text/csv",
+      })
+    ).json());
+  return request("/api/admin/songs/import", "POST", text, auth, {
+    "Content-Type": "text/csv",
+    "Idempotency-Key": options.key || randomToken(),
+    "X-CSV-Preview": preview.preview_token,
+    "X-CSV-Duplicates": options.confirmed ?? "yes",
+  });
+}
 before(async () => {
   const bundled = await build({
     entryPoints: ["server/index.js"],
@@ -92,6 +107,7 @@ before(async () => {
     "0005_admin_schedule_events.sql",
     "0006_song_revisions.sql",
     "0007_site_navigation.sql",
+    "0008_song_import_jobs.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -133,6 +149,7 @@ beforeEach(async () => {
     .run();
   await db.batch(
     [
+      "DELETE FROM song_import_jobs",
       "DELETE FROM site_navigation",
       "DELETE FROM admin_schedule_events",
       "DELETE FROM admin_schedule_weeks",
@@ -421,11 +438,7 @@ test("CSV preview reports row errors and duplicates; invalid import writes nothi
   assert.equal(preview.can_import, false);
   assert.equal(preview.errors[0].row, 3);
   assert.equal(preview.warnings.length, 1);
-  assert.equal(
-    (await request("/api/admin/songs/import", "POST", csv, auth, headers))
-      .status,
-    422,
-  );
+  assert.equal((await csvImport(auth, csv)).status, 422);
   assert.equal(
     (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
     1,
@@ -434,9 +447,7 @@ test("CSV preview reports row errors and duplicates; invalid import writes nothi
     song(),
     song({ description: '쉼표, 따옴표 " 와\n줄바꿈', is_public: false }),
   ]);
-  const imported = await (
-    await request("/api/admin/songs/import", "POST", valid, auth, headers)
-  ).json();
+  const imported = await (await csvImport(auth, valid)).json();
   assert.equal(imported.imported, 2);
   assert.equal(
     (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
@@ -461,13 +472,7 @@ test("1,000 row import uses chunked SQL and is append-only; file/row/encoding li
   const csv = stringifyCSV(
     Array.from({ length: 1000 }, (_, n) => song({ title: `일괄-${n}` })),
   );
-  const result = await request(
-    "/api/admin/songs/import",
-    "POST",
-    csv,
-    auth,
-    headers,
-  );
+  const result = await csvImport(auth, csv);
   assert.equal(result.status, 200, await result.clone().text());
   assert.equal((await result.json()).imported, 1000);
   assert.equal(
@@ -2334,5 +2339,199 @@ test("navigation validation rejects unsafe links, unknown fields, removed essent
   assert.equal(
     (await db.prepare("SELECT COUNT(*) n FROM site_navigation").first()).n,
     0,
+  );
+});
+
+test("CSV import replay, concurrent retries and conflicting reuse never duplicate one operation", async () => {
+  const auth = await login(),
+    csv = stringifyCSV([song({ title: "재시도 보호" })]),
+    key = randomToken();
+  const preview = await (
+    await request("/api/admin/songs/import/preview", "POST", csv, auth, {
+      "Content-Type": "text/csv",
+    })
+  ).json();
+  const attempts = await Promise.all(
+    Array.from({ length: 4 }, () => csvImport(auth, csv, { key, preview })),
+  );
+  for (const result of attempts)
+    assert.equal(result.status, 200, await result.clone().text());
+  const results = await Promise.all(attempts.map((result) => result.json()));
+  assert.equal(results.filter((result) => !result.replayed).length, 1);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    1,
+  );
+  const changedBody = await csvImport(
+    auth,
+    stringifyCSV([song({ title: "다른 파일" })]),
+    { key },
+  );
+  assert.equal(changedBody.status, 409);
+  assert.equal((await changedBody.json()).error.code, "CSV_IMPORT_KEY_REUSED");
+  const replay = await csvImport(auth, csv, { key, preview });
+  assert.equal((await replay.json()).replayed, true);
+});
+
+test("CSV preview changes and new duplicate warnings require another explicit confirmation", async () => {
+  const auth = await login(),
+    csv = stringifyCSV([song({ title: "미리보기 경합" })]);
+  const preview = await (
+    await request("/api/admin/songs/import/preview", "POST", csv, auth, {
+      "Content-Type": "text/csv",
+    })
+  ).json();
+  await create(auth, song({ title: "미리보기 경합" }));
+  const changed = await csvImport(auth, csv, { preview });
+  assert.equal(changed.status, 409);
+  const details = (await changed.json()).error.details;
+  assert.equal(details.preview.warnings.length, 1);
+  const unconfirmed = await csvImport(auth, csv, {
+    preview: details.preview,
+    confirmed: "no",
+  });
+  assert.equal(unconfirmed.status, 409);
+  assert.equal(
+    (await unconfirmed.json()).error.code,
+    "CSV_DUPLICATES_REQUIRED",
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    1,
+  );
+  assert.equal(
+    (await csvImport(auth, csv, { preview: details.preview, confirmed: "yes" }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    2,
+  );
+});
+
+test("CSV final transaction rejects stale snapshots and cannot reuse an older attempt's claim", async () => {
+  const { inspectCSV } = await import("../server/services/csv.js");
+  const { commitSongImport } =
+    await import("../server/repositories/song-imports.js");
+  const owner = originalAdmin.id,
+    csv = stringifyCSV([song({ title: "원자적 중복 검사" })]);
+  const inspection = await inspectCSV(db, csv),
+    key = randomToken();
+  const first = await commitSongImport(db, {
+    owner,
+    key,
+    bodyHash: "a".repeat(64),
+    claim: randomToken(),
+    ...inspection,
+  });
+  assert.equal(first.imported, 1);
+  const sameKeyRace = await commitSongImport(db, {
+    owner,
+    key,
+    bodyHash: "a".repeat(64),
+    claim: randomToken(),
+    ...inspection,
+  });
+  assert.equal(sameKeyRace, null);
+  const differentKeyRace = await commitSongImport(db, {
+    owner,
+    key: randomToken(),
+    bodyHash: "a".repeat(64),
+    claim: randomToken(),
+    ...inspection,
+  });
+  assert.equal(differentKeyRace, null);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    1,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM song_import_jobs").first())
+      .total,
+    1,
+  );
+});
+
+test("CSV receipts and song rows roll back together, so a failed import remains retryable", async () => {
+  const auth = await login(),
+    csv = stringifyCSV([song({ title: "강제 저장 실패" })]),
+    key = randomToken();
+  const preview = await (
+    await request("/api/admin/songs/import/preview", "POST", csv, auth, {
+      "Content-Type": "text/csv",
+    })
+  ).json();
+  await db
+    .prepare(
+      "CREATE TRIGGER qa_import_failure BEFORE INSERT ON songs BEGIN SELECT RAISE(ABORT, 'qa transaction failure'); END",
+    )
+    .run();
+  try {
+    assert.equal((await csvImport(auth, csv, { key, preview })).status, 503);
+  } finally {
+    await db.prepare("DROP TRIGGER qa_import_failure").run();
+  }
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM song_import_jobs").first())
+      .total,
+    0,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    0,
+  );
+  assert.equal((await csvImport(auth, csv, { key, preview })).status, 200);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    1,
+  );
+});
+
+test("CSV imports reject missing operation metadata without writing songs", async () => {
+  const auth = await login(),
+    csv = stringifyCSV([song()]);
+  const missing = await request("/api/admin/songs/import", "POST", csv, auth, {
+    "Content-Type": "text/csv",
+  });
+  assert.equal(missing.status, 422);
+  assert.equal((await missing.json()).error.code, "CSV_IMPORT_KEY");
+  const missingPreview = await request(
+    "/api/admin/songs/import",
+    "POST",
+    csv,
+    auth,
+    { "Content-Type": "text/csv", "Idempotency-Key": randomToken() },
+  );
+  assert.equal(missingPreview.status, 422);
+  assert.equal(
+    (await missingPreview.json()).error.code,
+    "CSV_PREVIEW_REQUIRED",
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    0,
+  );
+});
+
+test("CSV preview recovers a completed operation for the same owner without importing it again", async () => {
+  const auth = await login(),
+    csv = stringifyCSV([song({ title: "창을 다시 연 등록" })]),
+    key = randomToken();
+  assert.equal((await csvImport(auth, csv, { key })).status, 200);
+  const response = await request(
+    "/api/admin/songs/import/preview",
+    "POST",
+    csv,
+    auth,
+    { "Content-Type": "text/csv", "Idempotency-Key": key },
+  );
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.completed.imported, 1);
+  assert.equal(result.completed.replayed, true);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    1,
   );
 });

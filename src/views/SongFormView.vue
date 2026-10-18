@@ -1,4 +1,10 @@
 <script setup>
+import FieldLabel from "../components/FieldLabel.vue";
+import HelpTooltip from "../components/HelpTooltip.vue";
+import SongSaveVisibility from "../components/SongSaveVisibility.vue";
+import { SONG_TEXT_FIELDS, PRACTICE_OPTIONS } from "../../shared/song-rules.js";
+import { SONG_FIELD_HELP } from "../services/song-form-info.js";
+import "../styles/song-editor.css";
 import { computed, reactive, ref, watch, nextTick } from "vue";
 import LeafRating from "../components/LeafRating.vue";
 import StatusPill from "../components/StatusPill.vue";
@@ -8,7 +14,7 @@ import { isSongDraft } from "../services/song-draft.js";
 import { useEditorDraft } from "../services/useEditorDraft.js";
 import CoverImage from "../components/CoverImage.vue";
 const genres = ["가요", "발라드", "팝", "애니", "재즈", "기타"];
-const statuses = ["미연습", "연습중", "완료", "잠시 보류"];
+const statuses = PRACTICE_OPTIONS.map((option) => option.view);
 
 const props = defineProps({
   song: { type: Object, default: null },
@@ -252,78 +258,114 @@ async function submit() {
           <span><b>*</b> 필수 입력 항목</span>
         </div>
         <div class="form-grid">
-          <label class="field"
-            ><span>곡명 <b>*</b></span
-            ><input
+          <div class="field">
+            <FieldLabel
+              for-id="song-title"
+              label="곡명"
+              required
+              :help="SONG_FIELD_HELP.title"
+            /><input
+              id="song-title"
               v-model="form.title"
               required
-              maxlength="200"
+              :maxlength="SONG_TEXT_FIELDS.title.max"
               placeholder="노래 제목을 입력하세요"
-          /></label>
-          <label class="field"
-            ><span>아티스트 <b>*</b></span
-            ><input
+            />
+          </div>
+          <div class="field">
+            <FieldLabel
+              for-id="song-artist"
+              label="아티스트"
+              required
+              :help="SONG_FIELD_HELP.artist"
+            /><input
+              id="song-artist"
               v-model="form.artist"
               required
-              maxlength="200"
+              :maxlength="SONG_TEXT_FIELDS.artist.max"
               placeholder="가수 또는 아티스트명"
-          /></label>
-          <label class="field"
-            ><span>장르</span
-            ><input
+            />
+          </div>
+          <div class="field">
+            <FieldLabel
+              for-id="song-genre"
+              label="장르"
+              :help="SONG_FIELD_HELP.genre"
+            /><input
+              id="song-genre"
               v-model="form.genre"
               list="preview-genres"
-              maxlength="60"
-              placeholder="장르를 선택하거나 입력하세요" /><datalist
-              id="preview-genres"
-            >
+              :maxlength="SONG_TEXT_FIELDS.genre.max"
+              placeholder="장르를 선택하거나 입력하세요"
+            /><datalist id="preview-genres">
               <option
-                v-for="item in genres.filter((v) => v !== '전체')"
+                v-for="item in genres.filter((value) => value !== '전체')"
                 :key="item"
                 :value="item"
-              /></datalist
-          ></label>
-          <label class="field"
-            ><span>신청 풍 개수 <b>*</b></span
-            ><input
+              />
+            </datalist>
+          </div>
+          <div class="field">
+            <FieldLabel
+              for-id="song-balloon"
+              label="신청 풍 개수"
+              required
+              :help="SONG_FIELD_HELP.balloonCount"
+            /><input
+              id="song-balloon"
               v-model.number="form.balloonCount"
               type="number"
               min="0"
               step="1"
               required
-          /></label>
+            />
+          </div>
         </div>
         <div class="form-grid form-extra">
-          <label class="field"
-            ><span>언어</span
-            ><input
+          <div class="field">
+            <FieldLabel
+              for-id="song-language"
+              label="언어"
+              :help="SONG_FIELD_HELP.language"
+            /><input
+              id="song-language"
               v-model="form.language"
-              maxlength="40"
-              placeholder="예: 한국어" /></label
-          ><label class="field"
-            ><span>공개 상태</span
-            ><select v-model="form.isPublic" aria-label="공개 상태">
+              :maxlength="SONG_TEXT_FIELDS.language.max"
+              placeholder="예: 한국어"
+            />
+          </div>
+          <div class="field">
+            <FieldLabel
+              for-id="song-public"
+              label="공개 상태"
+              :help="SONG_FIELD_HELP.isPublic"
+            /><select id="song-public" v-model="form.isPublic">
               <option :value="true">공개</option>
               <option :value="false">비공개</option>
-            </select></label
-          >
+            </select>
+          </div>
         </div>
         <div class="form-divider"></div>
         <div class="form-grid">
           <div class="field">
-            <span>숙련도 <b>*</b></span>
+            <FieldLabel label="숙련도" required :help="SONG_FIELD_HELP.level" />
             <div class="rating-input">
               <LeafRating
                 :value="Number(form.level)"
                 editable
-                showNumber
+                show-number
                 @change="form.level = $event"
               />
-              <p>잎사귀를 눌러 1~5단계를 선택하세요.</p>
             </div>
           </div>
           <fieldset class="field">
-            <legend>연습 상태 <b>*</b></legend>
+            <legend>
+              연습 상태 <b aria-hidden="true">*</b
+              ><HelpTooltip
+                label="연습 상태"
+                :text="SONG_FIELD_HELP.practiceStatus"
+              />
+            </legend>
             <div class="segment-group">
               <label
                 v-for="status in statuses"
@@ -340,32 +382,41 @@ async function submit() {
           </fieldset>
         </div>
         <div class="form-divider"></div>
-        <label class="field full-width"
-          ><span>곡 설명</span
-          ><textarea
+        <div class="field full-width">
+          <FieldLabel
+            for-id="song-description"
+            label="곡 설명"
+            :help="SONG_FIELD_HELP.description"
+          /><textarea
+            id="song-description"
             v-model="form.description"
-            maxlength="5000"
+            :maxlength="SONG_TEXT_FIELDS.description.max"
             rows="4"
             placeholder="곡의 분위기나 소개를 적어주세요."
           ></textarea
           ><small class="field-count"
-            >{{ form.description.length }} / 5000</small
-          ></label
-        >
-        <label class="field full-width"
-          ><span
-            >지오 메모
-            <small class="private-indicator">관리자 전용</small></span
-          ><textarea
+            >{{ form.description.length }} /
+            {{ SONG_TEXT_FIELDS.description.max }}</small
+          >
+        </div>
+        <div class="field full-width">
+          <FieldLabel
+            for-id="song-memo"
+            label="지오 메모"
+            badge="관리자 전용"
+            :help="SONG_FIELD_HELP.privateMemo"
+          /><textarea
+            id="song-memo"
             v-model="form.privateMemo"
-            maxlength="3000"
+            :maxlength="SONG_TEXT_FIELDS.memo.max"
             rows="3"
             placeholder="연습 포인트나 내부 메모를 적어주세요."
           ></textarea
           ><small class="field-count"
-            >{{ form.privateMemo.length }} / 3000</small
-          ></label
-        >
+            >{{ form.privateMemo.length }} /
+            {{ SONG_TEXT_FIELDS.memo.max }}</small
+          >
+        </div>
         <div v-if="!connected" class="form-divider"></div>
         <label v-if="!connected" class="field full-width"
           ><span>커버 이미지</span
@@ -429,17 +480,24 @@ async function submit() {
         {{ error }}
       </p>
       <slot name="save-error" />
-      <div class="form-actions">
-        <button
-          class="btn btn-outline"
-          type="button"
-          :disabled="busy"
-          @click="emit('cancel')"
-        >
-          취소</button
-        ><button class="btn btn-primary" type="submit" :disabled="busy">
-          {{ busy ? "저장 중…" : isEdit ? "수정하기" : "등록하기" }}
-        </button>
+      <div class="song-save-bar">
+        <SongSaveVisibility
+          v-if="connected"
+          :is-public="form.isPublic"
+          :editing="isEdit"
+        />
+        <div class="form-actions">
+          <button
+            class="btn btn-outline"
+            type="button"
+            :disabled="busy"
+            @click="emit('cancel')"
+          >
+            취소</button
+          ><button class="btn btn-primary" type="submit" :disabled="busy">
+            {{ busy ? "저장 중…" : isEdit ? "수정하기" : "등록하기" }}
+          </button>
+        </div>
       </div>
     </form>
     <aside class="form-aside" :class="{ connected }">

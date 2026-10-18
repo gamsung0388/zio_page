@@ -1,0 +1,52 @@
+.song-save-bar {
+  margin-top: 24px;
+  border-top: 1px solid #e2e9dc;
+  padding-top: 18px;
+}
+.song-save-visibility {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #d4e5c7;
+  border-radius: 11px;
+  color: #285431;
+  background: #f1f7e9;
+}
+.song-save-visibility > svg {
+  margin-top: 2px;
+}
+.song-save-visibility.is-private {
+  color: #536348;
+  border-color: #dfe5d7;
+  background: #f6f7f1;
+}
+.song-save-visibility strong {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.song-save-visibility p {
+  font-size: 12px;
+  margin: 3px 0 0;
+  line-height: 1.8;
+  color: #5c7151;
+}
+.integrated-app .song-save-bar .form-actions {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+}
+.song-form .field .field-label-row {
+  margin-top: -7px;
+}
+.song-form fieldset.field > legend .help-tooltip-anchor {
+  margin-left: 3px;
+}
+.song-form .field-count {
+  margin-top: 5px;
+}
+@media (max-width: 600px) {
+  .song-save-visibility {
+    padding: 12px;
+  }
+}

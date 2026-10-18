@@ -28,6 +28,7 @@ import {
 } from "../../schedule/event-presentation.js";
 import { backupEventsFile } from "../../schedule/events-service.js";
 import Modal from "../Modal.vue";
+import DeleteConfirmation from "../DeleteConfirmation.vue";
 import Icon from "../Icon.vue";
 import DraftRecovery from "../DraftRecovery.vue";
 import Notice from "../Notice.vue";
@@ -46,6 +47,8 @@ const isNew = computed(() => props.eventId === "new"),
   error = ref(""),
   busy = ref(false),
   deleting = ref(false),
+  confirmingDelete = ref(false),
+  deleteError = ref(""),
   complete = ref(false),
   baseline = ref("");
 const controller = new AbortController();
@@ -186,15 +189,10 @@ async function save(image = false) {
   }
 }
 async function remove() {
-  if (
-    busy.value ||
-    !window.confirm(
-      "이 일정만 삭제할까요? 다른 일정과 주간 이미지 메모는 유지됩니다.",
-    )
-  )
-    return;
+  if (busy.value || isNew.value) return;
   busy.value = true;
   deleting.value = true;
+  deleteError.value = "";
   error.value = "";
   try {
     await api("/admin/schedule-events/" + props.eventId, {
@@ -204,9 +202,10 @@ async function remove() {
     baseline.value = JSON.stringify(form);
     drafts.clear();
     complete.value = true;
+    confirmingDelete.value = false;
     emit("deleted");
   } catch (err) {
-    error.value = err.message;
+    deleteError.value = err.message;
   } finally {
     busy.value = false;
     deleting.value = false;
@@ -456,7 +455,10 @@ defineExpose({ confirmLeave });
             class="button event-delete-action"
             type="button"
             :disabled="busy"
-            @click="remove"
+            @click="
+              deleteError = '';
+              confirmingDelete = true;
+            "
           >
             <Icon name="trash" :size="17" />{{
               deleting ? "삭제 중…" : "이 일정 삭제"
@@ -485,4 +487,17 @@ defineExpose({ confirmLeave });
       </div>
     </form>
   </Modal>
+  <DeleteConfirmation
+    v-if="confirmingDelete"
+    title="일정을 삭제할까요?"
+    :busy="busy"
+    :error="deleteError"
+    @close="confirmingDelete = false"
+    @confirm="remove"
+  >
+    <strong>{{ form.title }}</strong
+    ><br />{{ form.start_date }} ~ {{ form.end_date }}<br />
+    이 일정만 삭제합니다. 다른 일정과 주간 이미지 메모는 유지됩니다.
+    <p v-if="dirty">현재 편집 중인 미저장 변경도 함께 사라집니다.</p>
+  </DeleteConfirmation>
 </template>

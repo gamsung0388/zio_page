@@ -17,15 +17,12 @@ import {
   updateSong,
   deleteSong,
 } from "../repositories/songs.js";
-import {
-  CSV_MAX_BYTES,
-  previewCSV,
-  importCSV,
-  stringifyCSV,
-} from "../services/csv.js";
+import { CSV_MAX_BYTES, stringifyCSV } from "../services/csv.js";
+
+import { importCSV, previewCSVImport } from "../services/song-imports.js";
 
 // Called only after requireAdmin has checked session, permissions, origin and CSRF.
-export async function songRoutes(request, env, path) {
+export async function songRoutes(request, env, path, auth) {
   if (path === "/api/admin/songs") {
     if (request.method === "GET")
       return json(
@@ -71,8 +68,16 @@ export async function songRoutes(request, env, path) {
     const text = await readBody(request, CSV_MAX_BYTES);
     return json(
       await (path.endsWith("/preview")
-        ? previewCSV(env.DB, text)
-        : importCSV(env.DB, text)),
+        ? previewCSVImport(env.DB, text, {
+            owner: auth.user.id,
+            key: request.headers.get("Idempotency-Key"),
+          })
+        : importCSV(env.DB, text, {
+            owner: auth.user.id,
+            key: request.headers.get("Idempotency-Key"),
+            previewToken: request.headers.get("X-CSV-Preview"),
+            confirmed: request.headers.get("X-CSV-Duplicates"),
+          })),
     );
   }
   const match = path.match(/^\/api\/admin\/songs\/(\d+)$/);

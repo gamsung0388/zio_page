@@ -56,16 +56,28 @@ test("two open editors retain a conflicting draft and merge explicit choices wit
   await page.goto("/admin/songs/" + song.id + "/edit");
   await other.goto("http://127.0.0.1:5174/admin/songs/" + song.id + "/edit");
   const mine = other.getByRole("form", { name: "노래 입력" });
-  await expect(mine.getByLabel("곡명")).toHaveValue(song.title);
-  await page.getByLabel("곡명").fill("먼저 저장한 제목");
-  await page.getByLabel("지오 메모").fill("SERVER_PRIVATE_MEMO");
+  await expect(
+    mine.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue(song.title);
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("먼저 저장한 제목");
+  await page
+    .getByRole("textbox", { name: "지오 메모", exact: true })
+    .fill("SERVER_PRIVATE_MEMO");
   await page.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs$/);
-  await mine.getByLabel("곡명").fill("내가 선택할 제목");
-  await mine.getByLabel("아티스트").fill("내가 고친 가수");
+  await mine
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("내가 선택할 제목");
+  await mine
+    .getByRole("textbox", { name: "아티스트", exact: true })
+    .fill("내가 고친 가수");
   await mine.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(mine.getByRole("alert")).toContainText("다른 관리자");
-  await expect(mine.getByLabel("곡명")).toHaveValue("내가 선택할 제목");
+  await expect(
+    mine.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("내가 선택할 제목");
   await other
     .getByRole("button", { name: "저장된 내용과 비교", exact: true })
     .click();
@@ -110,7 +122,9 @@ test("two open editors retain a conflicting draft and merge explicit choices wit
     .getByRole("button", { name: "선택한 내용으로 편집 계속" })
     .click();
   await expect(dialog).toHaveCount(0);
-  await expect(mine.getByLabel("지오 메모")).toHaveValue("SERVER_PRIVATE_MEMO");
+  await expect(
+    mine.getByRole("textbox", { name: "지오 메모", exact: true }),
+  ).toHaveValue("SERVER_PRIVATE_MEMO");
   let latest = await (
     await page.request.get("/api/admin/songs/" + song.id)
   ).json();
@@ -167,7 +181,9 @@ test("a recovered song draft keeps its old revision and cannot silently overwrit
 }) => {
   let song = await createSong(page);
   await page.goto("/admin/songs/" + song.id + "/edit");
-  await page.getByLabel("곡명").fill("보관한 초안 제목");
+  await page
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("보관한 초안 제목");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -182,7 +198,9 @@ test("a recovered song draft keeps its old revision and cannot silently overwrit
   await page.reload();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "초안 복구", exact: true }).click();
-  await expect(page.getByLabel("곡명")).toHaveValue("보관한 초안 제목");
+  await expect(
+    page.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("보관한 초안 제목");
   await page.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(
     page.getByRole("form", { name: "노래 입력" }).getByRole("alert"),
@@ -214,5 +232,7 @@ test("a recovered song draft keeps its old revision and cannot silently overwrit
       .getByRole("region", { name: "노래 변경 충돌 안내" })
       .getByRole("alert"),
   ).toContainText("삭제됐어요");
-  await expect(page.getByLabel("곡명")).toHaveValue("보관한 초안 제목");
+  await expect(
+    page.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("보관한 초안 제목");
 });

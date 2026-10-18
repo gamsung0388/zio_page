@@ -1,17 +1,13 @@
 import { ApiError } from "../utils/http.js";
-export const STATUSES = ["not_started", "practicing", "completed", "on_hold"];
-export const SONG_FIELDS = [
-  "title",
-  "artist",
-  "description",
-  "genre",
-  "language",
-  "proficiency",
-  "practice_status",
-  "balloon_cost",
-  "memo",
-  "is_public",
-];
+import {
+  SONG_FIELDS,
+  SONG_TEXT_FIELDS,
+  PRACTICE_OPTIONS,
+  PROFICIENCY_MIN,
+  PROFICIENCY_MAX,
+} from "../../shared/song-rules.js";
+export { SONG_FIELDS };
+export const STATUSES = PRACTICE_OPTIONS.map((option) => option.value);
 const defaults = {
   description: "",
   genre: "",
@@ -22,14 +18,12 @@ const defaults = {
   memo: "",
   is_public: true,
 };
-const textLimits = {
-  title: [1, 200],
-  artist: [1, 200],
-  description: [0, 5000],
-  genre: [0, 60],
-  language: [0, 40],
-  memo: [0, 3000],
-};
+const textLimits = Object.fromEntries(
+  Object.entries(SONG_TEXT_FIELDS).map(([field, rule]) => [
+    field,
+    [rule.min, rule.max],
+  ]),
+);
 export function validateSong(input, partial = false) {
   const errors = [];
   const output = partial ? {} : { ...defaults };
@@ -55,8 +49,8 @@ export function validateSong(input, partial = false) {
     } else if (field === "proficiency" || field === "balloon_cost") {
       if (
         !Number.isSafeInteger(value) ||
-        value < (field === "proficiency" ? 1 : 0) ||
-        (field === "proficiency" && value > 5)
+        value < (field === "proficiency" ? PROFICIENCY_MIN : 0) ||
+        (field === "proficiency" && value > PROFICIENCY_MAX)
       ) {
         errors.push({
           field,

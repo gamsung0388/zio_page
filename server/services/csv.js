@@ -1,3 +1,4 @@
+import { sha256 } from "../utils/crypto.js";
 import { ApiError } from "../utils/http.js";
 import { validateSong, SONG_FIELDS } from "./song-validation.js";
 export const CSV_MAX_BYTES = 1024 * 1024;
@@ -81,7 +82,7 @@ function csvBoolean(value) {
   if (value === "false" || value === "0") return false;
   return value;
 }
-export async function previewCSV(db, text) {
+export async function inspectCSV(db, text) {
   const parsed = parseCSV(text);
   const header = parsed.shift()?.values.map((value) => value.trim());
   if (
@@ -102,6 +103,7 @@ export async function previewCSV(db, text) {
     rows = [],
     warnings = [];
   const seen = new Set();
+  let matchSnapshot = [];
   for (const record of parsed) {
     if (record.values.length !== header.length) {
       errors.push({
@@ -142,9 +144,9 @@ export async function previewCSV(db, text) {
   if (rows.length) {
     const existing = await db
       .prepare(
-        `SELECT DISTINCT s.title, s.artist FROM songs s
+        `SELECT DISTINCT s.id, s.title, s.artist FROM songs s
       JOIN json_each(?) j ON s.title = json_extract(j.value,'$.title') COLLATE NOCASE
-      AND s.artist = json_extract(j.value,'$.artist') COLLATE NOCASE`,
+      AND s.artist = json_extract(j.value,'$.artist') COLLATE NOCASE ORDER BY s.id`,
       )
       .bind(
         JSON.stringify(
@@ -152,6 +154,11 @@ export async function previewCSV(db, text) {
         ),
       )
       .all();
+    matchSnapshot = existing.results.map((song) => [
+      song.id,
+      song.title,
+      song.artist,
+    ]);
     const keys = new Set(
       existing.results.map((s) =>
         JSON.stringify([s.title.toLowerCase(), s.artist.toLowerCase()]),
@@ -173,42 +180,28 @@ export async function previewCSV(db, text) {
         });
       }
   }
-  return {
+  const preview = {
     total: parsed.length,
     rows,
     errors,
     warnings,
     can_import: errors.length === 0,
+    preview_token: await sha256(
+      JSON.stringify([await sha256(text), matchSnapshot]),
+    ),
+  };
+  return {
+    preview,
+    matchSnapshot,
+    matches: rows.map((row) => ({
+      title: row.song.title,
+      artist: row.song.artist,
+    })),
   };
 }
 
-export async function importCSV(db, text) {
-  const preview = await previewCSV(db, text);
-  if (!preview.can_import)
-    throw new ApiError(
-      422,
-      "CSV_VALIDATION",
-      "오류가 있어 등록하지 않았습니다. CSV를 수정해주세요.",
-      preview.errors,
-    );
-  // At most 10 INSERT statements for 1,000 rows, each with just one bound JSON parameter.
-  // batch is transactional: a failing chunk rolls back the whole import.
-  const statements = [];
-  for (let offset = 0; offset < preview.rows.length; offset += 100) {
-    const songs = preview.rows
-      .slice(offset, offset + 100)
-      .map((row) => ({ ...row.song, is_public: Number(row.song.is_public) }));
-    statements.push(
-      db
-        .prepare(
-          `INSERT INTO songs (${CSV_COLUMNS.join(",")})
-      SELECT ${CSV_COLUMNS.map((field) => `json_extract(value, '$.${field}')`).join(",")} FROM json_each(?)`,
-        )
-        .bind(JSON.stringify(songs)),
-    );
-  }
-  await db.batch(statements);
-  return { imported: preview.rows.length, warnings: preview.warnings };
+export async function previewCSV(db, text) {
+  return (await inspectCSV(db, text)).preview;
 }
 
 export function escapeCSV(value) {

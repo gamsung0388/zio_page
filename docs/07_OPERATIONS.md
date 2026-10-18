@@ -37,7 +37,7 @@ npm run deploy
 - 공개 목록은 항목/총계 2개 SQL, 최초 옵션 조회 시 3개 SQL입니다. 관리자 목록은 세션 조회가 1개 추가됩니다. 한 곡 상세는 1개 SQL입니다.
 - 홈은 최근 5곡만 조회하고, 검색은 디바운스 및 취소를 지원합니다. 목록 기본 20/최대 100곡이며 정렬과 공개/상태에 인덱스를 둡니다. 페이지 이동에도 전체 레코드를 프론트로 내려받지 않습니다.
 - 정확한 변경 반영과 메모 보호를 위해 API는 no-store입니다. 부분 문자열 검색과 COUNT는 데이터 크기에 따라 읽기량이 증가하므로 대규모 성장 시 실제 쿼리 통계에 따라 FTS/카운트 전략을 재검토합니다.
-- CSV 1,000곡은 인증/중복검사/10개 INSERT로 처리합니다. D1 요청당 쿼리 수와 바인딩 수에 맞춥니다.
+- CSV 1,000곡은 인증/완료 확인/중복검사와 노래용 최대 10개 INSERT 및 완료 영수증을 원자적으로 저장합니다. D1 요청당 쿼리 수와 바인딩 수에 맞춥니다.
 - Cloudflare 무료 할당량과 CPU/DB 사용량을 Dashboard에서 확인합니다. 무료 범위 내 월 0원을 목표로 하지만 무제한/비용 보장은 아닙니다. 최신 기준은 [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/)를 확인하세요. 자동 유료 전환이나 유료 리소스 생성은 구현하지 않았습니다.
 
 ## 백업 및 복구
@@ -70,3 +70,14 @@ npm run admin:revoke -- --remote
 이 프로젝트는 `env.DB`를 사용합니다. Wrangler가 생성하는 기본 이름 `zio_home_db`를 중복 추가하지 말고 기존 `binding: "DB"` 항목에 실제 database_id를 연결합니다. `remote: false`는 로컬 개발 시 운영 DB를 직접 쓰지 않는 설정이며, 실제 배포와 `--remote` 명령은 연결된 원격 D1을 사용합니다. E2E는 `remote: true` 바인딩이 있으면 시작을 중단합니다.
 
 관리자 비밀번호는 8~256자를 두 번 입력하며 `*`로 표시됩니다. 길이가 짧거나 확인 값이 다르면 해당 입력에서 이유를 표시하고 재입력할 수 있습니다.
+
+
+## SQL 백업과 복구 검증 명령 (2026-10-18)
+
+npm run backup:verify -- --remote로 운영 D1을 SQL로 내보내고, 새 .local/backups/verified-날짜-번호/restore-state에만 로컬 복구합니다. 로컬 개발 DB를 백업하려면 --local을 명시합니다. 원격 복구나 기존 로컬 상태 덮어쓰기는 수행하지 않습니다. 운영 데이터 쓰기는 0건입니다.
+
+백업 전후와 복구 후의 사용자 테이블·인덱스·뷰·트리거 이름 및 테이블별 행 수를 비교하고 SQLite quick_check와 foreign_key_check를 확인합니다. 테이블별 모든 값의 동등성 검사는 아니며, 작업 중 행 수가 바뀌면 확인 실패로 백업을 보존합니다. D1 복합 SELECT 제한에 맞춰 5개 테이블씩 조회합니다. 실패 시 백업 파일과 비공개 실행 기록을 남기며 운영 데이터는 되돌리지 않습니다.
+
+해당 폴더의 database.sql은 비밀번호 해시·세션·관리자 메모를 포함하는 민감한 전체 백업입니다. Git 제외 상태를 유지하고 별도 접근 제한 저장소에 보관합니다. verification.json은 경로·파일 SHA-256·크기·테이블별 건수·검증 결과, verification-private.log는 비공개 도구 기록입니다. 검증용 restore-state에도 실제 비공개 데이터가 있으므로 함께 보호합니다. 보관이 불필요한 오래된 백업은 운영자가 보존 정책에 따라 정리합니다. 자동 백업·자동 정리 일정은 추가하지 않았습니다.
+
+배포 순서: 전체 테스트 → backup:verify -- --remote 성공 확인 → db:migrate:remote(0008) → deploy → 운영 자산/DB/관리자 접근 제한 확인. CSV 백업은 노래 추가용 형식이며 SQL 복구를 대체하지 않습니다. [이번 변경과 검증](26_SONG_STABILITY_AND_UI.md).

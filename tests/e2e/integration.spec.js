@@ -61,8 +61,12 @@ test("save failure retains draft, prevents duplicate submission and confirms uns
   await login(page);
   await page.goto("/admin/songs/new");
   const form = page.getByRole("form", { name: "노래 입력" });
-  await form.getByLabel("곡명").fill("저장 실패 유지 검증");
-  await form.getByLabel("아티스트").fill("검증 가수");
+  await form
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("저장 실패 유지 검증");
+  await form
+    .getByRole("textbox", { name: "아티스트", exact: true })
+    .fill("검증 가수");
   await form.getByRole("button", { name: "숙련도 4단계 선택" }).click();
   await form.getByRole("radio", { name: "잠시 보류", exact: true }).check();
   let requests = 0,
@@ -82,12 +86,16 @@ test("save failure retains draft, prevents duplicate submission and confirms uns
   await expect(
     form.getByRole("button", { name: "저장 중…", exact: true }),
   ).toBeDisabled();
-  await expect(form.getByLabel("곡명")).toBeDisabled();
+  await expect(
+    form.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toBeDisabled();
   await form.evaluate((el) => el.requestSubmit());
   release();
   await expect(form.getByRole("alert")).toContainText("저장 연결 오류");
   expect(requests).toBe(1);
-  await expect(form.getByLabel("곡명")).toHaveValue("저장 실패 유지 검증");
+  await expect(
+    form.getByRole("textbox", { name: "곡명", exact: true }),
+  ).toHaveValue("저장 실패 유지 검증");
   await expect(
     form.getByRole("radio", { name: "잠시 보류", exact: true }),
   ).toBeChecked();
@@ -127,9 +135,9 @@ test("real UI at all five target sizes, persisted editor and accessible mobile n
       await page.goto(url);
       await expect(page.locator("h1")).toBeVisible();
       if (name === "edit") {
-        await expect(page.getByLabel("지오 메모")).toHaveValue(
-          "HIDDEN_IN_PUBLIC",
-        );
+        await expect(
+          page.getByRole("textbox", { name: "지오 메모", exact: true }),
+        ).toHaveValue("HIDDEN_IN_PUBLIC");
         await expect(
           page.getByRole("radio", { name: "잠시 보류", exact: true }),
         ).toBeChecked();

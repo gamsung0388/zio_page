@@ -118,12 +118,24 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
   await page.getByRole("button", { name: "새 노래 등록" }).click();
   const editor = page.getByRole("form", { name: "노래 입력" });
   const dialog = page.getByRole("dialog");
-  await editor.getByLabel("곡명").fill("QA 전용 곡");
-  await editor.getByLabel("아티스트").fill("검증용 가수");
-  await editor.getByLabel("장르", { exact: true }).fill("발라드");
-  await editor.getByLabel("언어", { exact: true }).fill("한국어");
-  await editor.getByLabel("신청 풍 개수").fill("77");
-  await editor.getByLabel("지오 메모").fill("PUBLIC_MUST_NOT_SEE");
+  await editor
+    .getByRole("textbox", { name: "곡명", exact: true })
+    .fill("QA 전용 곡");
+  await editor
+    .getByRole("textbox", { name: "아티스트", exact: true })
+    .fill("검증용 가수");
+  await editor
+    .getByRole("combobox", { name: "장르", exact: true })
+    .fill("발라드");
+  await editor
+    .getByRole("textbox", { name: "언어", exact: true })
+    .fill("한국어");
+  await editor
+    .getByRole("spinbutton", { name: "신청 풍 개수", exact: true })
+    .fill("77");
+  await editor
+    .getByRole("textbox", { name: "지오 메모", exact: true })
+    .fill("PUBLIC_MUST_NOT_SEE");
   await editor.getByRole("button", { name: "숙련도 1단계 선택" }).click();
   await editor.getByRole("button", { name: "등록하기", exact: true }).click();
   await expect(
@@ -131,7 +143,7 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "QA 전용 곡", exact: true }),
+    page.getByRole("button", { name: "QA 전용 곡 정보 수정", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/screenshots/admin-songs-desktop.png",
@@ -143,7 +155,7 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
     editor.getByRole("radio", { name: "미연습", exact: true }),
   ).toBeChecked();
   await editor
-    .getByLabel("공개 상태", { exact: true })
+    .getByRole("combobox", { name: "공개 상태", exact: true })
     .selectOption({ label: "비공개" });
   await editor.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(
@@ -218,7 +230,7 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
   ).toBeVisible();
   await dialog.getByRole("button", { name: "삭제하기" }).click();
   await expect(
-    page.getByRole("button", { name: "QA 전용 곡", exact: true }),
+    page.getByRole("button", { name: "QA 전용 곡 정보 수정", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "로그아웃", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/);

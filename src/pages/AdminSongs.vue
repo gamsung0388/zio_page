@@ -4,21 +4,23 @@ import { songGuideLink } from "../services/song-guide.js";
 import { updateAdminSong, removeAdminSong } from "../services/song-admin.js";
 import { useRoute, useRouter } from "vue-router";
 import { notification, notify } from "../services/notifications.js";
-import { toSongView } from "../services/song-adapter.js";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { api, session, downloadBlob } from "../services/api.js";
 import { useSongs } from "../services/useSongs.js";
 import { sortLabels, formatNumber } from "../services/song-labels.js";
 import Icon from "../components/Icon.vue";
 import Notice from "../components/Notice.vue";
 import SongFilters from "../components/SongFilters.vue";
-import SongCard from "../components/SongCard.vue";
+import AdminSongCollection from "../components/AdminSongCollection.vue";
+import { useSongLayout } from "../services/useSongLayout.js";
 import CsvImport from "../components/CsvImport.vue";
-import Modal from "../components/Modal.vue";
+import DeleteConfirmation from "../components/DeleteConfirmation.vue";
 import Pagination from "../components/Pagination.vue";
 const {
   items,
   total,
+  hasFilters,
+  emptyInfo,
   loading,
   error,
   filters,
@@ -38,6 +40,18 @@ function edit(song) {
     path: song ? "/admin/songs/" + song.id + "/edit" : "/admin/songs/new",
     query: { returnTo: route.fullPath },
   });
+}
+const { desktop, layout, select } = useSongLayout();
+const visibilitySummary = computed(() =>
+  filters.is_public === "true"
+    ? "공개 곡만"
+    : filters.is_public === "false"
+      ? "비공개 곡만"
+      : "비공개 포함",
+);
+function openDelete(song) {
+  deleting.value = song;
+  deleteError.value = "";
 }
 const importing = ref(false),
   deleting = ref(null),
@@ -78,10 +92,7 @@ async function remove() {
   try {
     await removeAdminSong(deleting.value);
     deleting.value = null;
-    if (items.value.length === 1 && page.value > 1) {
-      update("page", page.value - 1);
-      notify("노래를 삭제했습니다.");
-    } else saved("노래를 삭제했습니다.");
+    saved("노래를 삭제했습니다.");
   } catch (err) {
     deleteError.value =
       err.code === "SONG_CONFLICT"
@@ -165,9 +176,30 @@ async function backup() {
     <div class="results-toolbar">
       <p role="status">
         총 <strong>{{ formatNumber(total) }}</strong
-        >곡 <span class="muted">· 비공개 포함</span>
+        >곡 <span class="muted">· {{ visibilitySummary }}</span>
       </p>
       <div>
+        <div
+          v-if="desktop"
+          class="song-layout-switch"
+          role="group"
+          aria-label="노래 보기 방식"
+        >
+          <button
+            type="button"
+            :aria-pressed="layout === 'list'"
+            @click="select('list')"
+          >
+            <Icon name="list" :size="16" />목록 보기
+          </button>
+          <button
+            type="button"
+            :aria-pressed="layout === 'cards'"
+            @click="select('cards')"
+          >
+            <Icon name="layout" :size="16" />카드 보기
+          </button>
+        </div>
         <label
           ><span class="sr-only">페이지당 노래 수</span
           ><select
@@ -200,53 +232,27 @@ async function backup() {
         :loading="loading"
         :error="error"
         :empty="!items.length"
-        title="등록된 노래가 없어요"
-        message="새 노래를 등록하거나 CSV 파일을 가져와 노래책자를 채워보세요."
+        :title="emptyInfo.title"
+        :message="emptyInfo.message"
         @retry="load"
-      />
-      <div
-        v-if="!loading && !error && items.length"
-        class="song-grid admin-song-grid"
+        ><button
+          v-if="hasFilters"
+          class="text-button"
+          type="button"
+          @click="reset"
+        >
+          필터 초기화
+        </button></Notice
       >
-        <article v-for="song in items" :key="song.id" class="managed-song">
-          <SongCard :song="toSongView(song)" @open="edit(song)" />
-          <div class="song-management-actions">
-            <span
-              class="visibility-label"
-              :class="{ 'is-private': !song.is_public }"
-              >{{ song.is_public ? "공개" : "비공개" }}</span
-            >
-            <button
-              :disabled="busy"
-              :aria-label="song.title + ' 수정'"
-              @click="edit(song)"
-            >
-              수정
-            </button>
-            <button
-              :disabled="busy"
-              :aria-label="
-                song.title +
-                (song.is_public ? ' 비공개로 전환' : ' 공개로 전환')
-              "
-              @click="toggle(song)"
-            >
-              {{ song.is_public ? "비공개" : "공개" }}
-            </button>
-            <button
-              :disabled="busy"
-              class="delete-song"
-              :aria-label="song.title + ' 삭제'"
-              @click="
-                deleting = song;
-                deleteError = '';
-              "
-            >
-              삭제
-            </button>
-          </div>
-        </article>
-      </div>
+      <AdminSongCollection
+        v-if="!loading && !error && items.length"
+        :items="items"
+        :busy="busy"
+        :list="layout === 'list'"
+        @edit="edit"
+        @toggle="toggle"
+        @delete="openDelete"
+      />
     </div>
     <Pagination
       :page="page"
@@ -262,29 +268,15 @@ async function backup() {
       v-if="importing"
       @close="importing = false"
       @imported="saved"
-    /><Modal
+    /><DeleteConfirmation
       v-if="deleting"
       title="노래를 삭제할까요?"
       :busy="busy"
+      :error="deleteError"
       @close="deleting = null"
-      ><p class="modal-intro">
-        <strong>{{ deleting.title }}</strong> · {{ deleting.artist
-        }}<br />삭제한 곡은 되돌릴 수 없습니다.
-      </p>
-      <p v-if="deleteError" role="alert" class="form-error">
-        {{ deleteError }}
-      </p>
-      <div class="modal-actions">
-        <button
-          class="button secondary"
-          :disabled="busy"
-          @click="deleting = null"
-        >
-          취소</button
-        ><button class="button destructive" :disabled="busy" @click="remove">
-          {{ busy ? "삭제 중…" : "삭제하기" }}
-        </button>
-      </div></Modal
-    >
+      @confirm="remove"
+      ><strong>{{ deleting.title }}</strong> · {{ deleting.artist }}<br />삭제한
+      곡은 되돌릴 수 없습니다.
+    </DeleteConfirmation>
   </div>
 </template>

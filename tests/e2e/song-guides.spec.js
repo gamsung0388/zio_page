@@ -16,7 +16,7 @@ test("public song guide opens without login, explains real features and returns 
       writes.push(path);
   });
   const source =
-    "/songs?q=%EA%B0%80%EC%88%98&proficiency=3&practice_status=practicing&sort=title_asc&page=2&page_size=50";
+    "/songs?q=%EA%B0%80%EC%88%98&proficiency=3&practice_status=practicing&sort=title_asc&page=1&page_size=50";
   await page.goto(source);
   await page.getByRole("link", { name: "사용 가이드", exact: true }).click();
   await expect(page).toHaveURL(/\/songs\/guide\?/);
@@ -82,12 +82,16 @@ test("admin song guide requires login and restores its destination after authent
     .getByRole("button", { name: "CSV 일괄 등록", exact: true })
     .click();
   await expect(page.locator("#admin-song-csv")).toBeFocused();
-  await expect(page.getByRole("table")).toContainText("practice_status");
+  const table = page.getByRole("table");
+  await expect(table).not.toBeVisible();
+  await page.getByText("CSV 열과 입력값 자세히 보기", { exact: true }).click();
+  await expect(table).toBeVisible();
+  await expect(table).toContainText("practice_status");
   await page
     .getByRole("link", { name: "노래 관리로 돌아가기", exact: true })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/admin\/songs\?is_public=false&page=2$/);
+  await expect(page).toHaveURL(/\/admin\/songs\?is_public=false&page=1$/);
 });
 
 test("new and existing song editors open the guide in a new tab without losing or saving private inputs", async ({
@@ -119,9 +123,15 @@ test("new and existing song editors open the guide in a new tab without losing o
     for (const path of ["/admin/songs/new", `/admin/songs/${song.id}/edit`]) {
       await page.goto(path);
       const form = page.getByRole("form", { name: "노래 입력" });
-      await expect(form.getByLabel("곡명")).toBeVisible();
-      await form.getByLabel("곡명").fill("가이드를 봐도 유지할 제목");
-      await form.getByLabel("지오 메모").fill("GUIDE_UNSAVED_PRIVATE");
+      await expect(
+        form.getByRole("textbox", { name: "곡명", exact: true }),
+      ).toBeVisible();
+      await form
+        .getByRole("textbox", { name: "곡명", exact: true })
+        .fill("가이드를 봐도 유지할 제목");
+      await form
+        .getByRole("textbox", { name: "지오 메모", exact: true })
+        .fill("GUIDE_UNSAVED_PRIVATE");
       const guide = page.getByRole("link", {
         name: "등록 가이드 (새 탭)",
         exact: true,
@@ -144,12 +154,12 @@ test("new and existing song editors open the guide in a new tab without losing o
         "GUIDE_PRIVATE_SENTINEL",
       );
       await popup.close();
-      await expect(form.getByLabel("곡명")).toHaveValue(
-        "가이드를 봐도 유지할 제목",
-      );
-      await expect(form.getByLabel("지오 메모")).toHaveValue(
-        "GUIDE_UNSAVED_PRIVATE",
-      );
+      await expect(
+        form.getByRole("textbox", { name: "곡명", exact: true }),
+      ).toHaveValue("가이드를 봐도 유지할 제목");
+      await expect(
+        form.getByRole("textbox", { name: "지오 메모", exact: true }),
+      ).toHaveValue("GUIDE_UNSAVED_PRIVATE");
       page.once("dialog", (dialog) => dialog.accept());
       await form.getByRole("button", { name: "취소", exact: true }).click();
       await expect(page).toHaveURL(/\/admin\/songs$/);

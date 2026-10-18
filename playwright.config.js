@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:5174",
-    channel: "msedge",
+    channel: process.env.CI ? "chromium" : "msedge",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

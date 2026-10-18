@@ -11,6 +11,8 @@ export async function loginAdmin(page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 export async function adminHeaders(page) {
-  const session = await (await page.request.get("/api/admin/me")).json();
+  const session = await (
+    await page.request.get("/api/admin/me", { maxRetries: 2 })
+  ).json();
   return { Origin: "http://127.0.0.1:5174", "X-CSRF-Token": session.csrfToken };
 }

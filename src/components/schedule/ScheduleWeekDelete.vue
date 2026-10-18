@@ -5,7 +5,7 @@ import { useEditorGuard } from "../../services/editor-guards.js";
 import { downloadScheduleBackup } from "../../schedule/backup.js";
 import { DAY_OPTIONS } from "../../../shared/schedule/scheduleConfig.js";
 import { addDays } from "../../../shared/schedule/dates.js";
-import Modal from "../Modal.vue";
+import DeleteConfirmation from "../DeleteConfirmation.vue";
 const props = defineProps({
   week: { type: Object, required: true },
   discardDraft: Boolean,
@@ -47,9 +47,13 @@ async function remove() {
 }
 </script>
 <template>
-  <Modal
+  <DeleteConfirmation
     title="주간 메모 삭제"
     :busy="busy"
+    :error="error"
+    :blocked="Boolean(error)"
+    confirm-label="이 주 메모 삭제"
+    @confirm="remove"
     class="week-delete-dialog"
     @close="emit('close')"
   >
@@ -79,20 +83,8 @@ async function remove() {
     <button class="text-button" :disabled="busy" @click="backup">
       삭제 전 JSON 백업
     </button>
-    <p v-if="error" class="form-error" role="alert">{{ error }}</p>
     <p class="form-hint">
       삭제 후에는 미리 받은 백업을 가져와 복구할 수 있습니다.
     </p>
-    <div class="modal-actions">
-      <button class="button secondary" :disabled="busy" @click="emit('close')">
-        취소</button
-      ><button
-        class="button week-delete-confirm"
-        :disabled="busy || Boolean(error)"
-        @click="remove"
-      >
-        {{ busy ? "삭제 중…" : "이 주 메모 삭제" }}
-      </button>
-    </div>
-  </Modal>
+  </DeleteConfirmation>
 </template>

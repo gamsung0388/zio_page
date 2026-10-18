@@ -6,6 +6,7 @@ const paths = {
   users:
     "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M15 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
   layout: "M3 3h18v18H3V3Zm0 6h18M9 9v12",
+  list: "M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1",
   external: "M14 3h7v7m0-7L10 14M10 3H3v18h18v-7",
   up: "m6 15 6-6 6 6",
   down: "m6 9 6 6 6-6",

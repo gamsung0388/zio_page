@@ -1,0 +1,95 @@
+/* Shared application buttons, fields and editor feedback. Keep feature styles in their owning modules. */
+.integrated-app .button {
+  border-radius: 10px;
+  min-height: 44px;
+}
+.integrated-app .button.primary {
+  background: #1b4b32;
+  color: #fff;
+  border-color: #1b4b32;
+}
+.integrated-app .field {
+  margin-bottom: 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.integrated-app .song-form .field {
+  margin-bottom: 0;
+}
+.integrated-app
+  .field
+  input:not([type="radio"]):not([type="file"]):not([type="checkbox"]),
+.integrated-app .field select,
+.integrated-app .field textarea {
+  min-height: 45px;
+  border: 1px solid #dfe7dd;
+  border-radius: 9px;
+  background: #fbfcfa;
+  width: 100%;
+  padding: 10px 14px;
+}
+.integrated-app .song-form .field textarea {
+  padding: 14px;
+}
+.integrated-app .editor-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.integrated-app .editor-fields:disabled {
+  opacity: 0.72;
+}
+.integrated-app .form-error {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.integrated-app .form-actions {
+  justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .integrated-app .form-actions {
+    position: static;
+    margin: 20px 0 0;
+    padding: 16px 0 0;
+    box-shadow: none;
+  }
+}
+
+.integrated-app .field .private-indicator {
+  display: inline-block;
+  width: auto;
+  align-self: flex-start;
+}
+.editor-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.draft-recovery {
+  padding: 16px;
+  border: 1px solid #b2cf94;
+  border-radius: 12px;
+  background: #f0f8e9;
+  margin: 0 0 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.draft-recovery p {
+  width: 100%;
+  margin: 0;
+  font-size: 13px;
+}
+.draft-recovery .btn {
+  min-height: 38px;
+  font-size: 12px;
+}
+.btn-lime {
+  background: #ccebaa;
+  border: 1px solid #c4e69f;
+  color: #24472c;
+}

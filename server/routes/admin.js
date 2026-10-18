@@ -31,7 +31,7 @@ export async function adminRoutes(request, env, path) {
   if (path === "/api/admin/navigation")
     return navigationRoutes(request, env, path, auth);
   if (path === "/api/admin/songs" || path.startsWith("/api/admin/songs/"))
-    return songRoutes(request, env, path);
+    return songRoutes(request, env, path, auth);
   if (
     path === "/api/admin/schedule-events" ||
     path.startsWith("/api/admin/schedule-events/")

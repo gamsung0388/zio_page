@@ -3,7 +3,6 @@ import Icon from "../components/Icon.vue";
 import GuideLink from "../components/guide/GuideLink.vue";
 import { songGuideLink } from "../services/song-guide.js";
 import { useRoute } from "vue-router";
-import { computed } from "vue";
 import { useSongs } from "../services/useSongs.js";
 import { sortLabels, formatNumber } from "../services/song-labels.js";
 import SongFilters from "../components/SongFilters.vue";
@@ -15,6 +14,8 @@ const route = useRoute();
 const {
   items,
   total,
+  hasFilters,
+  emptyInfo,
   loading,
   error,
   filters,
@@ -27,11 +28,6 @@ const {
   search,
   reset,
 } = useSongs();
-const hasFilters = computed(() =>
-  ["q", "proficiency", "practice_status", "genre", "language"].some(
-    (k) => filters[k],
-  ),
-);
 </script>
 <template>
   <div class="container page songs-page">
@@ -91,10 +87,8 @@ const hasFilters = computed(() =>
         :error="error"
         :loading="loading"
         :empty="!items.length"
-        :title="hasFilters ? '조건에 맞는 노래가 없어요' : undefined"
-        :message="
-          hasFilters ? '검색어를 바꾸거나 필터를 초기화해보세요.' : undefined
-        "
+        :title="emptyInfo.title"
+        :message="emptyInfo.message"
         @retry="load"
         ><button v-if="hasFilters" class="text-button" @click="reset">
           필터 초기화

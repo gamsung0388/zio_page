@@ -1,0 +1,143 @@
+.admin-song-table-wrap {
+  margin-top: 16px;
+  border: 1px solid #e0e7dc;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+.admin-song-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.admin-song-table th {
+  background: #f1f6eb;
+  color: #365437;
+  text-align: left;
+  padding: 15px 12px;
+  font-size: 12px;
+}
+.admin-song-table th:nth-child(1) {
+  width: 25%;
+}
+.admin-song-table th:nth-child(2) {
+  width: 13%;
+}
+.admin-song-table th:nth-child(3) {
+  width: 22%;
+}
+.admin-song-table th:nth-child(4) {
+  width: 9%;
+}
+.admin-song-table th:nth-child(5) {
+  width: 8%;
+}
+.admin-song-table th:nth-child(6) {
+  width: 23%;
+}
+.admin-song-table td {
+  padding: 14px 12px;
+  border-top: 1px solid #e8ede2;
+  color: #41583e;
+  font-size: 13px;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.admin-song-table tbody tr:hover {
+  background: #fafcf7;
+}
+.admin-song-title {
+  display: block;
+  text-align: left;
+  min-height: 44px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: #1c4931;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.admin-song-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.admin-song-table td > small {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+  color: #66785d;
+}
+.admin-song-practice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.admin-song-practice .leaf-rating svg {
+  width: 16px;
+  height: 16px;
+}
+.admin-song-practice .leaf-rating {
+  gap: 1px;
+}
+.admin-song-practice .rating-count {
+  margin-left: 5px;
+  font-size: 11px;
+}
+.admin-song-practice .status-pill {
+  font-size: 11px;
+}
+.admin-song-cost {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.integrated-app .song-management-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.integrated-app .song-management-actions > button {
+  min-height: 44px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.integrated-app .admin-song-table .song-management-actions {
+  padding: 0;
+  border: 0;
+}
+.integrated-app .admin-song-table .visibility-label {
+  font-size: 11px;
+  padding: 5px 7px;
+}
+.song-layout-switch {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  border: 1px solid #dfe7d7;
+  border-radius: 10px;
+  padding: 3px;
+  background: #eef4e8;
+}
+.song-layout-switch button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #496141;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.song-layout-switch button[aria-pressed="true"] {
+  background: #fff;
+  color: #214c31;
+  border-color: #d8e3ce;
+  box-shadow: 0 1px 3px #1137260d;
+}

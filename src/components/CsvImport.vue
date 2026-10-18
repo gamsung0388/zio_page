@@ -1,57 +1,27 @@
 <script setup>
-import { ref, shallowRef } from "vue";
-import { api, downloadBlob } from "../services/api.js";
+import { downloadBlob } from "../services/api.js";
+import { useCsvImport } from "../services/useCsvImport.js";
+import { SONG_FIELDS } from "../../shared/song-rules.js";
 import Modal from "./Modal.vue";
 import Icon from "./Icon.vue";
 const emit = defineEmits(["close", "imported"]);
-const file = shallowRef(),
-  preview = ref(),
-  error = ref(""),
-  busy = ref(false),
-  acknowledged = ref(false);
+const {
+  file,
+  preview,
+  error,
+  busy,
+  acknowledged,
+  storageNotice,
+  selectFile,
+  send,
+} = useCsvImport((message) => emit("imported", message));
 function template() {
   downloadBlob(
-    new Blob(
-      [
-        "\uFEFFtitle,artist,description,genre,language,proficiency,practice_status,balloon_cost,memo,is_public\r\n",
-      ],
-      { type: "text/csv;charset=utf-8" },
-    ),
+    new Blob(["\uFEFF" + SONG_FIELDS.join(",") + "\r\n"], {
+      type: "text/csv;charset=utf-8",
+    }),
     "zio-songs-template.csv",
   );
-}
-function selectFile(event) {
-  preview.value = null;
-  acknowledged.value = false;
-  error.value = "";
-  file.value = event.target.files[0];
-  if (file.value?.size > 1024 * 1024) {
-    error.value = "CSV 파일은 1MB 이하로 선택해주세요.";
-    file.value = null;
-  }
-}
-async function send(importing = false) {
-  busy.value = true;
-  error.value = "";
-  try {
-    const result = await api(
-      `/admin/songs/import${importing ? "" : "/preview"}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "text/csv; charset=utf-8" },
-        body: file.value,
-      },
-    );
-    if (importing) emit("imported", `${result.imported}곡을 추가했습니다.`);
-    else {
-      preview.value = result;
-      acknowledged.value = false;
-    }
-  } catch (err) {
-    error.value = err.message;
-  } finally {
-    busy.value = false;
-  }
 }
 </script>
 <template>
@@ -71,6 +41,9 @@ async function send(importing = false) {
         <Icon name="download" :size="15" />빈 템플릿 다운로드
       </button>
     </div>
+    <p v-if="storageNotice" class="form-hint" role="status">
+      {{ storageNotice }}
+    </p>
     <p v-if="error" role="alert" class="form-error">{{ error }}</p>
     <button
       v-if="file && !preview"

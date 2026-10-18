@@ -1,4 +1,5 @@
 <script setup>
+import "../../styles/schedule.css";
 import { computed } from "vue";
 import { queryPage } from "../../../shared/pagination.js";
 import { useRoute } from "vue-router";

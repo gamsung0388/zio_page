@@ -73,15 +73,6 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-.integrated-app .button {
-  border-radius: 10px;
-  min-height: 44px;
-}
-.integrated-app .button.primary {
-  background: #1b4b32;
-  color: #fff;
-  border-color: #1b4b32;
-}
 .integrated-app .login-page {
   padding: 15px 0 45px;
   min-height: 0;
@@ -91,45 +82,6 @@
   border-radius: 20px;
   max-width: 480px;
   margin: auto;
-}
-.integrated-app .field {
-  margin-bottom: 18px;
-  font-size: 13px;
-  font-weight: 600;
-}
-.integrated-app .song-form .field {
-  margin-bottom: 0;
-}
-.integrated-app
-  .field
-  input:not([type="radio"]):not([type="file"]):not([type="checkbox"]),
-.integrated-app .field select,
-.integrated-app .field textarea {
-  min-height: 45px;
-  border: 1px solid #dfe7dd;
-  border-radius: 9px;
-  background: #fbfcfa;
-  width: 100%;
-  padding: 10px 14px;
-}
-.integrated-app .song-form .field textarea {
-  padding: 14px;
-}
-.integrated-app .editor-fields {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-.integrated-app .editor-fields:disabled {
-  opacity: 0.72;
-}
-.integrated-app .form-error {
-  margin-top: 16px;
-  overflow-wrap: anywhere;
-}
-.integrated-app .form-actions {
-  justify-content: flex-end;
 }
 .integrated-app .toast {
   position: fixed;
@@ -366,12 +318,6 @@
   .integrated-app .song-form {
     padding: 19px;
   }
-  .integrated-app .form-actions {
-    position: static;
-    margin: 20px 0 0;
-    padding: 16px 0 0;
-    box-shadow: none;
-  }
   .integrated-app .toast {
     right: 16px;
     left: 16px;
@@ -393,12 +339,6 @@
   .song-management-actions {
     padding: 8px 10px;
   }
-}
-
-.integrated-app .field .private-indicator {
-  display: inline-block;
-  width: auto;
-  align-self: flex-start;
 }
 .integrated-app .form-aside.connected {
   grid-template-columns: 1fr;

@@ -94,3 +94,14 @@
 ## 메뉴 설정 (2026-10-17)
 
 GET /api/navigation은 표시 중인 공개·바로가기 메뉴만 {items}로 반환합니다. 운영 위치의 링크·이름, 숨긴 항목, 수정자와 버전은 제외합니다. GET /api/admin/navigation은 인증 후 {items,revision,updated_at}를, PUT은 {items,expected_revision}으로 전체 설정을 저장합니다. 항목은 {id,label,area,href,visible}입니다. 기존 세션·강제 변경·Origin·CSRF와 no-store를 공유합니다. 미저장은 revision 0, 저장 충돌은 409 NAVIGATION_CONFLICT, 항목/버전 오류는 422입니다. [검증·필드·동시 저장 계약](22_MANAGEMENT_AND_DESIGN.md).
+
+
+## CSV 작업별 재시도 보호 (2026-10-18)
+
+최종 import는 HTTP 헤더 Idempotency-Key(영문/숫자/._- 16~80자), X-CSV-Preview(미리보기의 preview_token 64자리 SHA-256), X-CSV-Duplicates(중복이 있으면 yes)를 받습니다. 기존 인증·Origin·CSRF 검사를 유지합니다. 미리보기는 선택적으로 같은 Idempotency-Key를 받습니다.
+
+같은 관리자·작업 키·본문의 완료 요청은 저장 결과와 replayed:true를 반환하며 재삽입하지 않습니다. 같은 키로 다른 본문은 409 CSV_IMPORT_KEY_REUSED입니다. 미리보기 이후 동일 제목·가수의 기존 곡이 바뀌면 409 CSV_PREVIEW_CHANGED, 중복 미동의는 409 CSV_DUPLICATES_REQUIRED이며 error.details.preview로 현재 미리보기를 반환합니다. 키/미리보기 누락은 422입니다. 이전 화면은 새로고침하고 파일을 다시 선택합니다.
+
+미리보기에서 완료 작업을 찾으면 {completed:{imported,warnings,replayed:true}}를 반환합니다. CSV 내용은 브라우저 저장소에 보관하지 않으며 파일 해시별 작업 키만 계정·탭별 최대 24시간 보관합니다. 성공 확인/자발적 로그아웃 시 정리합니다. 다른 탭·계정이나 성공 후 새 작업에는 기존 중복 경고·명시적 동의를 적용합니다.
+
+실행 migration 0008은 song_import_jobs만 추가합니다. 완료 영수증, 같은 제목·가수의 현재 DB 스냅샷 검사, 100행 단위 INSERT를 하나의 D1 batch로 커밋합니다. 고유 작업 키와 시도별 claim_token으로 동시 재전송도 보호하고, 중간 오류는 모두 롤백합니다. 기존 노래·계정·일정 스키마와 CSV 10개 열은 유지합니다. 영수증에는 본문을 보관하지 않고 해시·추가 건수·중복 경고만 저장합니다. 자동 삭제는 하지 않습니다.

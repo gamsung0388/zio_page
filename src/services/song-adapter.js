@@ -1,10 +1,13 @@
 // Pure mappings only. This module does not call APIs or persist data.
-const statusToView = {
-  not_started: "미연습",
-  practicing: "연습중",
-  completed: "완료",
-  on_hold: "잠시 보류",
-};
+import {
+  SONG_TEXT_FIELDS,
+  PRACTICE_OPTIONS,
+  PROFICIENCY_MIN,
+  PROFICIENCY_MAX,
+} from "../../shared/song-rules.js";
+const statusToView = Object.fromEntries(
+  PRACTICE_OPTIONS.map((option) => [option.value, option.view]),
+);
 const statusToApi = new Map(
   Object.entries(statusToView).map(([key, value]) => [value, key]),
 );
@@ -48,14 +51,10 @@ export function toSongInput(view, { admin = false } = {}) {
 }
 export function validateDraft(form) {
   const errors = [];
-  for (const [field, label, max, required] of [
-    ["title", "곡명", 200, true],
-    ["artist", "아티스트", 200, true],
-    ["genre", "장르", 60, false],
-    ["language", "언어", 40, false],
-    ["description", "곡 설명", 5000, false],
-    ["privateMemo", "비공개 메모", 3000, false],
-  ]) {
+  for (const { view: field, label, min, max } of Object.values(
+    SONG_TEXT_FIELDS,
+  )) {
+    const required = min > 0;
     const length = Array.from(String(form[field] || "").trim()).length;
     if ((required && !length) || length > max)
       errors.push(
@@ -67,7 +66,11 @@ export function validateDraft(form) {
           "자로 입력해주세요.",
       );
   }
-  if (!Number.isInteger(Number(form.level)) || form.level < 1 || form.level > 5)
+  if (
+    !Number.isInteger(Number(form.level)) ||
+    form.level < PROFICIENCY_MIN ||
+    form.level > PROFICIENCY_MAX
+  )
     errors.push("숙련도를 1~5단계 중 선택해주세요.");
   if (!Number.isSafeInteger(Number(form.balloonCount)) || form.balloonCount < 0)
     errors.push("풍 개수는 0 이상의 안전한 정수로 입력해주세요.");

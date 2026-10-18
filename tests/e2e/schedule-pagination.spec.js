@@ -150,9 +150,12 @@ test("more than 2000 events remain reachable and invalid or emptied pages recove
   await expect(
     dialog.getByRole("button", { name: "이 일정 삭제", exact: true }),
   ).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
   await dialog
     .getByRole("button", { name: "이 일정 삭제", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "일정을 삭제할까요?", exact: true })
+    .getByRole("button", { name: "삭제하기", exact: true })
     .click();
   await expect(page).toHaveURL(/page=41/);
   await expect(page.locator(".schedule-event-card")).toHaveCount(50);

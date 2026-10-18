@@ -1,4 +1,5 @@
 import { reactive } from "vue";
+import { singleFlight } from "./single-flight.js";
 export const session = reactive({ user: null, csrfToken: "", checked: false });
 export async function api(path, options = {}) {
   const headers = new Headers(options.headers);
@@ -42,7 +43,7 @@ export async function api(path, options = {}) {
   if (options.download) return response.blob();
   return response.json();
 }
-export async function checkSession() {
+export const checkSession = singleFlight(async () => {
   try {
     const data = await api("/admin/me");
     Object.assign(session, data, { checked: true });
@@ -52,7 +53,7 @@ export async function checkSession() {
     session.checked = true;
     return false;
   }
-}
+});
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = Object.assign(document.createElement("a"), {

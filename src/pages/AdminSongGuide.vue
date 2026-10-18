@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import GuideLayout from "../components/guide/GuideLayout.vue";
+import GuideDetails from "../components/guide/GuideDetails.vue";
 import { songGuideReturnTo } from "../services/song-guide.js";
 
 const route = useRoute();
@@ -161,8 +162,10 @@ const csvFields = [
         </div>
       </dl>
       <p>
-        별표가 붙은 항목과 숙련도를 확인해주세요. 저장이 안 된다면 표시되는 오류
-        안내에 따라 입력을 수정하면 됩니다.
+        항목 옆 <strong>?</strong>에 마우스를 올리거나 키보드로 이동하면 짧은
+        도움말이 나와요. 모바일에서는 탭해서 열고 다시 탭하거나 다른 곳을 눌러
+        닫습니다. 키보드는 Esc로 닫을 수 있어요. 별표가 붙은 항목과 숙련도를
+        확인하고, 오류 안내에 따라 입력을 수정해주세요.
       </p>
     </template>
     <template #admin-song-visibility>
@@ -182,8 +185,8 @@ const csvFields = [
       </ul>
       <p class="reading-guide-note">
         미리보기에는 입력한 곡 정보가 표시됩니다.
-        <strong>공개 상태는 저장 전에 별도로 확인</strong>해주세요. 방문자에게
-        보일 모습은
+        <strong>저장 버튼 옆 공개 안내</strong>가 현재 선택을 따라 바뀝니다.
+        등록·수정 전에 확인해주세요. 방문자에게 보일 모습은
         <RouterLink to="/songs/guide">노래책자 사용 가이드</RouterLink>에서도
         확인할 수 있어요.
       </p>
@@ -206,8 +209,11 @@ const csvFields = [
         </li>
       </ul>
       <p>
-        노래가 많으면 검색·필터·정렬과 페이지 이동을 사용하세요.
-        <strong>공개 여부 필터</strong>로 비공개 곡만 모아볼 수도 있어요.
+        PC에서는 <strong>목록 보기 / 카드 보기</strong>를 선택할 수 있어요.
+        모바일과 태블릿은 카드로 표시합니다. 두 보기에서 같은 수정·공개
+        전환·삭제 기능을 사용해요. 노래가 많으면 검색·필터·정렬과 페이지 이동을
+        사용하세요. <strong>공개 여부 필터</strong>로 비공개 곡만 모아볼 수도
+        있어요.
       </p>
     </template>
     <template #admin-song-csv>
@@ -235,29 +241,34 @@ const csvFields = [
         </li>
       </ol>
       <p class="reading-guide-note">
-        CSV는 <strong>새 곡을 추가</strong>합니다. 기존 곡은 수정하지 않으며,
-        같은 파일을 다시 가져오면 중복으로 추가될 수 있어요. 오류가 하나라도
-        있으면 전체를 저장하지 않습니다.
+        CSV는 <strong>새 곡을 추가</strong>하며 기존 곡은 수정하지 않습니다.
+        저장 응답을 받지 못했다면 같은 탭에서 같은 파일을 다시 선택해주세요.
+        완료된 작업을 확인해 중복 등록을 막습니다. 저장 성공을 확인한 뒤 새로
+        가져오거나 다른 탭·계정에서 가져오면 별도 작업이므로 중복 경고를 꼭
+        확인해주세요. 미리보기 후 목록이 바뀌면 새로운 중복 안내를 확인하고 다시
+        동의해야 합니다. 오류가 하나라도 있으면 전체를 저장하지 않습니다.
       </p>
-      <table class="reading-guide-table">
-        <caption>
-          템플릿의 열과 입력값
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">열 이름</th>
-            <th scope="col">입력 방법</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="[name, text] in csvFields" :key="name">
-            <td>
-              <code>{{ name }}</code>
-            </td>
-            <td>{{ text }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <GuideDetails label="CSV 열과 입력값 자세히 보기">
+        <table class="reading-guide-table">
+          <caption>
+            템플릿의 열과 입력값
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">열 이름</th>
+              <th scope="col">입력 방법</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="[name, text] in csvFields" :key="name">
+              <td>
+                <code>{{ name }}</code>
+              </td>
+              <td>{{ text }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </GuideDetails>
       <p>
         비워둔 항목도 열 이름은 삭제하지 마세요.
         <strong>is_public을 비우면 공개</strong>로 추가되므로 준비 중인 곡은
@@ -265,14 +276,16 @@ const csvFields = [
       </p>
     </template>
     <template #admin-song-recovery>
-      <h3>전체 CSV 백업</h3>
-      <p>
-        <strong>노래 관리 → 전체 CSV 백업</strong>을 누르면 검색 조건과 관계없이
-        전체 곡을 다운로드합니다.
-        <strong>비공개 곡과 지오 메모도 포함</strong>되므로 관리자용으로
-        보관해주세요. 백업을 CSV 가져오기로 다시 올리면 기존 곡을 덮어쓰지 않고
-        새 곡이 추가됩니다.
-      </p>
+      <GuideDetails label="전체 CSV 백업과 복구 주의사항">
+        <h3>전체 CSV 백업</h3>
+        <p>
+          <strong>노래 관리 → 전체 CSV 백업</strong>을 누르면 검색 조건과
+          관계없이 전체 곡을 다운로드합니다.
+          <strong>비공개 곡과 지오 메모도 포함</strong>되므로 관리자용으로
+          보관해주세요. 백업을 CSV 가져오기로 다시 올리면 기존 곡을 덮어쓰지
+          않고 새 곡이 추가됩니다.
+        </p>
+      </GuideDetails>
       <h3>저장하지 못했을 때</h3>
       <p>
         오류 안내가 나오면 입력을 확인한 뒤 다시 저장해주세요. 다른 곳에서 같은

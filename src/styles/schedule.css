@@ -158,12 +158,6 @@
   flex-wrap: wrap;
   margin-top: 20px;
 }
-.editor-fields {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
-}
 .schedule-week-picker {
   display: flex;
   align-items: center;
@@ -351,27 +345,6 @@
     font-size: 11px;
   }
 }
-
-.draft-recovery {
-  padding: 16px;
-  border: 1px solid #b2cf94;
-  border-radius: 12px;
-  background: #f0f8e9;
-  margin: 0 0 18px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.draft-recovery p {
-  width: 100%;
-  margin: 0;
-  font-size: 13px;
-}
-.draft-recovery .btn {
-  min-height: 38px;
-  font-size: 12px;
-}
 .schedule-action-bar {
   display: flex;
   gap: 8px;
@@ -383,11 +356,6 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-left: auto;
-}
-.btn-lime {
-  background: #ccebaa;
-  border: 1px solid #c4e69f;
-  color: #24472c;
 }
 .schedule-save-state small {
   display: block;

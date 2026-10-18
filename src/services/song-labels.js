@@ -1,3 +1,4 @@
+import { PRACTICE_OPTIONS } from "../../shared/song-rules.js";
 export const proficiencyLabels = [
   "",
   "연습 필요",
@@ -6,12 +7,9 @@ export const proficiencyLabels = [
   "자신 있음",
   "완곡 가능",
 ];
-export const practiceLabels = {
-  not_started: "미연습",
-  practicing: "연습 중",
-  completed: "연습 완료",
-  on_hold: "잠시 보류",
-};
+export const practiceLabels = Object.fromEntries(
+  PRACTICE_OPTIONS.map((option) => [option.value, option.label]),
+);
 export const sortLabels = {
   recent: "최신 등록순",
   title_asc: "제목 오름차순",
