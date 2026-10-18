@@ -135,3 +135,5 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 GitHub push/PR에서 단위·API·격리 브라우저·참고 UI·프로덕션 빌드를 검증합니다. 워크플로는 읽기 권한으로 실행하고 Cloudflare 인증/원격 DB/자동 배포는 사용하지 않습니다. 로컬은 Edge, CI는 설치한 Chromium을 사용합니다.
 
 배포는 테스트 통과 → npm run backup:verify -- --remote → npm run db:migrate:remote → npm run deploy 순서입니다. 마이그레이션은 별도로 승인된 배포 범위에서만 실행합니다. 배포 후 https://zio-home.com 의 DB 연결·파일 일치·관리자 접근 제한·PC/모바일을 검증합니다. [백업과 운영 절차](docs/07_OPERATIONS.md).
+
+2026-10-18 안정화 배포 완료: 소스 d8c96ed, Worker 1e99891b-b437-4262-934f-9670280e0027. 187개 고유 검증과 GitHub 전체 검증·빌드가 통과했고 운영 파일 80개 일치·DB·권한·다섯 화면 크기를 확인했습니다. migration 0008 적용 전 SQL 백업과 별도 로컬 복구를 검증했습니다. [상세 기록과 Cloudflare 설정 관측](docs/26_SONG_STABILITY_AND_UI.md).
