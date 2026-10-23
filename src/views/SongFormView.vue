@@ -1,4 +1,6 @@
 <script setup>
+import AlbumPicker from "../components/AlbumPicker.vue";
+import AlbumSource from "../components/AlbumSource.vue";
 import { songCover } from "../services/song-cover.js";
 import FieldLabel from "../components/FieldLabel.vue";
 import HelpTooltip from "../components/HelpTooltip.vue";
@@ -47,6 +49,7 @@ const form = reactive({
   language: "",
   isPublic: true,
   links: [],
+  album: null,
 });
 
 function reset() {
@@ -64,6 +67,7 @@ function reset() {
     privateMemo: song?.privateMemo ?? "",
     language: song?.language ?? "",
     isPublic: song?.isPublic ?? true,
+    album: song?.album ?? null,
     links: song?.links?.map((link) => ({ ...link })) ?? [],
   });
   error.value = "";
@@ -91,7 +95,8 @@ const drafts = useEditorDraft({
       )
     )
       return false;
-    for (const key of Object.keys(form)) form[key] = value[key];
+    for (const key of Object.keys(form))
+      form[key] = key === "album" ? (value.album ?? null) : value[key];
     sourceRevision.value =
       value.sourceRevision ??
       (value.sourceUpdatedAt === (props.song?.updatedAt || null)
@@ -130,7 +135,9 @@ const previewSong = computed(() => ({
   level: Number(form.level),
   practiceStatus: form.practiceStatus,
   balloonCount: Number(form.balloonCount),
-  cover: songCover(form),
+  cover:
+    form.album?.artwork_url ||
+    (props.connected ? songCover({ genre: form.genre }) : songCover(form)),
 }));
 
 function onFileChange(event) {
@@ -186,12 +193,15 @@ async function submit() {
     level: Number(form.level),
     practiceStatus: form.practiceStatus,
     balloonCount: Number(form.balloonCount),
-    cover: songCover(form),
+    cover:
+      form.album?.artwork_url ||
+      (props.connected ? songCover({ genre: form.genre }) : songCover(form)),
     description: form.description.trim(),
     privateMemo: form.privateMemo.trim(),
     language: form.language.trim(),
     isPublic: form.isPublic,
     links: cleanLinks,
+    ...(props.connected ? { album: form.album } : {}),
     ...(props.connected && isEdit.value
       ? { sourceRevision: sourceRevision.value }
       : {}),
@@ -418,6 +428,24 @@ async function submit() {
             {{ SONG_TEXT_FIELDS.memo.max }}</small
           >
         </div>
+        <AlbumPicker
+          v-if="connected"
+          v-model="form.album"
+          :title="form.title"
+          :artist="form.artist"
+          :disabled="busy"
+        />
+        <button
+          v-if="connected && !isEdit && form.album"
+          type="button"
+          class="button secondary"
+          @click="
+            form.title = Array.from(form.album.title).slice(0, 200).join('');
+            form.artist = Array.from(form.album.artist).slice(0, 200).join('');
+          "
+        >
+          선택한 음원의 곡명·가수 가져오기
+        </button>
         <div v-if="!connected" class="form-divider"></div>
         <label v-if="!connected" class="field full-width"
           ><span>커버 이미지</span
@@ -513,6 +541,7 @@ async function submit() {
             <span class="genre-chip">{{ previewSong.genre }}</span>
           </div>
         </div>
+        <AlbumSource v-if="form.album" :album="form.album" />
         <div class="preview-stat">
           <span>숙련도</span
           ><LeafRating :value="previewSong.level" showNumber />

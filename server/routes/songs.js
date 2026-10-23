@@ -11,6 +11,7 @@ import {
   songConflict,
 } from "../services/song-mutations.js";
 import {
+  serialize,
   listSongs,
   getSong,
   createSong,
@@ -19,10 +20,41 @@ import {
 } from "../repositories/songs.js";
 import { CSV_MAX_BYTES, stringifyCSV } from "../services/csv.js";
 
+import { validateBulk, bulkSongs } from "../services/song-bulk.js";
 import { importCSV, previewCSVImport } from "../services/song-imports.js";
 
 // Called only after requireAdmin has checked session, permissions, origin and CSRF.
 export async function songRoutes(request, env, path, auth) {
+  if (path === "/api/admin/songs/backup" && request.method === "GET") {
+    const params = new URL(request.url).searchParams,
+      raw = params.get("after");
+    if (
+      [...params.keys()].some((k) => k !== "after") ||
+      params.getAll("after").length > 1 ||
+      (raw !== null &&
+        (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))))
+    )
+      throw new ApiError(400, "SONG_BACKUP", "백업 페이지를 확인해주세요.");
+    const rows = (
+      await env.DB.prepare(
+        "SELECT * FROM songs WHERE deleted_at IS NULL AND id>? ORDER BY id LIMIT 101",
+      )
+        .bind(raw === null ? 0 : Number(raw))
+        .all()
+    ).results;
+    return json({
+      items: rows.slice(0, 100).map(serialize),
+      next_after: rows.length > 100 ? rows[99].id : null,
+    });
+  }
+  if (path === "/api/admin/songs/bulk" && request.method === "PATCH")
+    return json(
+      await bulkSongs(
+        env.DB,
+        validateBulk(await readJson(request)),
+        auth.user.id,
+      ),
+    );
   if (path === "/api/admin/songs") {
     if (request.method === "GET")
       return json(
@@ -34,13 +66,17 @@ export async function songRoutes(request, env, path, auth) {
       );
     if (request.method === "POST")
       return json(
-        await createSong(env.DB, validateSong(await readJson(request))),
+        await createSong(
+          env.DB,
+          validateSong(await readJson(request)),
+          auth.user.id,
+        ),
         201,
       );
   }
   if (path === "/api/admin/songs/export.csv" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT * FROM songs ORDER BY id",
+      "SELECT * FROM songs WHERE deleted_at IS NULL ORDER BY id",
     ).all();
     return new Response(stringifyCSV(result.results), {
       headers: {
@@ -93,13 +129,20 @@ export async function songRoutes(request, env, path, auth) {
       const { changes, revision } = validateSongMutation(
         await readJson(request),
       );
-      const song = await updateSong(env.DB, id, changes, revision);
+      const song = await updateSong(
+        env.DB,
+        id,
+        changes,
+        revision,
+        auth.user.id,
+      );
       if (!song) songConflict();
       return json(song);
     }
     if (request.method === "DELETE") {
       const { revision } = validateSongMutation(await readJson(request), true);
-      if (!(await deleteSong(env.DB, id, revision))) songConflict();
+      if (!(await deleteSong(env.DB, id, revision, auth.user.id)))
+        songConflict();
       return json({ ok: true });
     }
   }

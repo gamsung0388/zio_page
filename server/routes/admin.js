@@ -1,3 +1,10 @@
+import { profileRoutes } from "./site-profile.js";
+import { recoveryRoutes } from "./recovery.js";
+import {
+  changeAdminStatus,
+  revokeAdminSessions,
+} from "../services/admin-status.js";
+import { searchCatalog } from "../services/catalog.js";
 import { appearanceRoutes } from "./appearance.js";
 import { navigationRoutes } from "./navigation.js";
 import { songRoutes } from "./songs.js";
@@ -29,6 +36,31 @@ export async function adminRoutes(request, env, path) {
     });
   }
   const auth = await requireAdmin(request, env);
+  if (path === "/api/admin/site") return profileRoutes(request, env);
+  if (path.startsWith("/api/admin/recovery/"))
+    return recoveryRoutes(request, env, path, auth);
+  const accountAction = path.match(
+    /^\/api\/admin\/users\/([1-9]\d*)\/(status|revoke-sessions)$/,
+  );
+  if (accountAction) {
+    const id = Number(accountAction[1]);
+    if (!Number.isSafeInteger(id))
+      throw new ApiError(404, "NOT_FOUND", "관리자를 찾을 수 없습니다.");
+    if (accountAction[2] === "status" && request.method === "PATCH")
+      return json(
+        await changeAdminStatus(
+          env.DB,
+          id,
+          await readJson(request),
+          auth.user.id,
+        ),
+      );
+    if (accountAction[2] === "revoke-sessions" && request.method === "POST")
+      return json(await revokeAdminSessions(env.DB, id, auth.user.id));
+  }
+
+  if (path === "/api/admin/catalog/search" && request.method === "POST")
+    return json(await searchCatalog(env.DB, await readJson(request)));
   if (path === "/api/admin/appearance") return appearanceRoutes(request, env);
   if (path === "/api/admin/navigation")
     return navigationRoutes(request, env, path, auth);

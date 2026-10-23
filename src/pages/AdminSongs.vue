@@ -1,10 +1,14 @@
 <script setup>
+import { useEditorGuard } from "../services/editor-guards.js";
+import SongBackupImport from "../components/SongBackupImport.vue";
+import { backupSongs } from "../services/song-backup.js";
+import SongBulkEditor from "../components/SongBulkEditor.vue";
 import GuideLink from "../components/guide/GuideLink.vue";
 import { songGuideLink } from "../services/song-guide.js";
 import { updateAdminSong, removeAdminSong } from "../services/song-admin.js";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { notification, notify } from "../services/notifications.js";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { api, session, downloadBlob } from "../services/api.js";
 import { useSongs } from "../services/useSongs.js";
 import { sortLabels, formatNumber } from "../services/song-labels.js";
@@ -42,6 +46,47 @@ function edit(song) {
   });
 }
 const { desktop, layout, select } = useSongLayout();
+const selected = ref([]),
+  bulkOpen = ref(false),
+  bulkResult = ref(""),
+  backupImport = ref(false);
+const selectedSongs = computed(() =>
+  items.value.filter((song) => selected.value.includes(song.id)),
+);
+watch(items, () => {
+  selected.value = [];
+});
+function selectSong(song) {
+  selected.value = selected.value.includes(song.id)
+    ? selected.value.filter((id) => id !== song.id)
+    : selected.value.length < 20
+      ? [...selected.value, song.id]
+      : selected.value;
+}
+function selectPage() {
+  selected.value = selected.value.length
+    ? []
+    : items.value.slice(0, 20).map((song) => song.id);
+}
+async function bulkSaved(result) {
+  bulkOpen.value = false;
+  bulkResult.value =
+    result.applied.length +
+    "곡을 변경했어요." +
+    (result.conflicted.length
+      ? " 다른 곳에서 변경되거나 삭제된 " +
+        result.conflicted.length +
+        "곡은 건너뛰었습니다. 최신 목록을 확인하고 다시 선택해주세요."
+      : "");
+  selected.value = [];
+  await load();
+}
+function copySong(song) {
+  router.push({
+    path: "/admin/songs/new",
+    query: { copy: String(song.id), returnTo: route.fullPath },
+  });
+}
 const visibilitySummary = computed(() =>
   filters.is_public === "true"
     ? "공개 곡만"
@@ -59,6 +104,10 @@ const importing = ref(false),
   toast = notification,
   actionError = ref(""),
   deleteError = ref("");
+useEditorGuard(() => busy.value);
+onBeforeRouteLeave(
+  (to) => ["/admin/login", "/admin/password"].includes(to.path) || !busy.value,
+);
 function saved(message) {
   importing.value = false;
   notify(message);
@@ -92,13 +141,29 @@ async function remove() {
   try {
     await removeAdminSong(deleting.value);
     deleting.value = null;
-    saved("노래를 삭제했습니다.");
+    saved("노래를 휴지통으로 옮겼습니다. 휴지통에서 복원할 수 있어요.");
   } catch (err) {
     deleteError.value =
       err.code === "SONG_CONFLICT"
         ? "노래가 변경됐어요. 삭제 창을 닫고 최신 목록에서 다시 선택해주세요."
         : err.message;
     if (err.code === "SONG_CONFLICT") await load();
+  } finally {
+    busy.value = false;
+  }
+}
+async function backupJson() {
+  if (busy.value) return;
+  busy.value = true;
+  actionError.value = "";
+  try {
+    downloadBlob(
+      await backupSongs(),
+      "zio-songbook-" + new Date().toISOString().slice(0, 10) + ".json",
+    );
+    notify("앨범 연결과 관리자 메모를 포함한 노래 백업을 만들었어요.");
+  } catch (e) {
+    actionError.value = e.message;
   } finally {
     busy.value = false;
   }
@@ -146,6 +211,10 @@ async function backup() {
         </button>
       </div>
     </div>
+    <div class="recovery-links">
+      <RouterLink to="/admin/recovery?type=songs">노래 휴지통</RouterLink
+      ><RouterLink to="/admin/recovery?type=history">최근 변경 기록</RouterLink>
+    </div>
     <div class="admin-tools">
       <span><Icon name="music" :size="16" />노래책자 · CSV 관리</span>
       <div>
@@ -160,12 +229,26 @@ async function backup() {
           :disabled="busy"
           @click="backup"
         >
-          <Icon name="download" :size="16" />전체 CSV 백업
+          <Icon name="download" :size="16" />전체 CSV 백업</button
+        ><button
+          class="button secondary small"
+          :disabled="busy"
+          @click="backupJson"
+        >
+          앨범 포함 JSON 백업</button
+        ><button
+          class="button secondary small"
+          :disabled="busy"
+          @click="backupImport = true"
+        >
+          JSON 백업 가져오기
         </button>
       </div>
     </div>
+    <p v-if="bulkResult" class="bulk-result" role="status">{{ bulkResult }}</p>
     <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
     <SongFilters
+      :inert="busy || bulkOpen"
       :filters="filters"
       :facets="facets"
       admin
@@ -227,6 +310,30 @@ async function backup() {
         >
       </div>
     </div>
+    <div v-if="!loading && !error && items.length" class="bulk-toolbar">
+      <label class="song-select"
+        ><input
+          type="checkbox"
+          :checked="selected.length > 0"
+          :disabled="busy"
+          @change="selectPage"
+        />현재 목록에서 최대 20곡 선택</label
+      ><span>{{ selected.length }}곡 선택</span
+      ><button
+        class="button secondary small"
+        :disabled="busy || !selected.length"
+        @click="bulkOpen = true"
+      >
+        선택 곡 일괄 수정
+      </button>
+    </div>
+    <SongBulkEditor
+      @busy="busy = $event"
+      v-if="bulkOpen"
+      :items="selectedSongs"
+      @close="bulkOpen = false"
+      @saved="bulkSaved"
+    />
     <div class="results-panel" :aria-busy="loading">
       <Notice
         :loading="loading"
@@ -245,6 +352,9 @@ async function backup() {
         </button></Notice
       >
       <AdminSongCollection
+        :selected="selected"
+        @select="selectSong"
+        @copy="copySong"
         v-if="!loading && !error && items.length"
         :items="items"
         :busy="busy"
@@ -257,13 +367,14 @@ async function backup() {
     <Pagination
       :page="page"
       :pages="pages"
-      :disabled="loading"
+      :disabled="loading || busy || bulkOpen"
       @change="update('page', $event)"
     />
     <p class="form-hint">
-      CSV 백업에는 비공개 곡과 관리자 메모가 포함됩니다. 안전한 위치에
-      보관해주세요.
+      백업에는 비공개 곡과 관리자 메모가 포함됩니다. 앨범 연결까지 보관하려면
+      JSON 백업을 선택해주세요.
     </p>
+    <SongBackupImport v-if="backupImport" @close="backupImport = false" />
     <CsvImport
       v-if="importing"
       @close="importing = false"
@@ -276,7 +387,7 @@ async function backup() {
       @close="deleting = null"
       @confirm="remove"
       ><strong>{{ deleting.title }}</strong> · {{ deleting.artist }}<br />삭제한
-      곡은 되돌릴 수 없습니다.
+      곡은 휴지통에서 복원할 수 있어요.
     </DeleteConfirmation>
   </div>
 </template>

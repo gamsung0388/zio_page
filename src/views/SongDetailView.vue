@@ -1,4 +1,5 @@
 <script setup>
+import AlbumSource from "../components/AlbumSource.vue";
 import CoverImage from "../components/CoverImage.vue";
 import LeafRating from "../components/LeafRating.vue";
 import StatusPill from "../components/StatusPill.vue";
@@ -40,6 +41,7 @@ const emit = defineEmits(["navigate", "edit", "delete"]);
           <span class="eyebrow">SONG DETAILS</span>
           <h1>{{ song.title }}</h1>
           <p class="detail-artist">{{ song.artist }}</p>
+          <AlbumSource v-if="song.album" :album="song.album" />
           <div class="detail-chips">
             <span v-if="song.genre" class="genre-chip">{{ song.genre }}</span
             ><StatusPill :status="song.practiceStatus" />

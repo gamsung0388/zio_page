@@ -8,15 +8,17 @@ export const administrationLinks = Object.freeze([
   },
   {
     id: "menus",
-    label: "메뉴 관리",
-    href: "/admin/menus",
+    label: "홈페이지 관리",
+    href: "/admin/site",
     icon: "layout",
-    description: "메뉴와 링크를 정리하고 홈페이지 테마를 골라요.",
+    description: "소개와 추천 곡, 메뉴·공식 링크와 테마를 정리해요.",
   },
 ]);
 export function activeNavigation(path) {
   if (path.startsWith("/admin/songs")) return "manage";
   if (path.startsWith("/admin/schedule")) return "schedule";
+  if (path.startsWith("/admin/site")) return "menus";
+  if (path.startsWith("/admin/recovery")) return "administration";
   if (path.startsWith("/admin/appearance")) return "menus";
   if (path.startsWith("/admin/menus")) return "menus";
   if (path === "/admin") return "administration";

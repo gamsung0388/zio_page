@@ -66,6 +66,49 @@ async function reset() {
     busy.value = false;
   }
 }
+const accountAction = ref(null),
+  accountError = ref("");
+function chooseAction(account, mode) {
+  accountAction.value = { account, mode };
+  accountError.value = "";
+}
+async function applyAccountAction() {
+  if (busy.value) return;
+  busy.value = true;
+  accountError.value = "";
+  const { account, mode } = accountAction.value;
+  try {
+    await api(
+      "/admin/users/" +
+        account.id +
+        (mode === "revoke" ? "/revoke-sessions" : "/status"),
+      {
+        method: mode === "revoke" ? "POST" : "PATCH",
+        ...(mode === "revoke"
+          ? {}
+          : {
+              body: {
+                is_active: !account.is_active,
+                expected_revision: account.revision,
+              },
+            }),
+      },
+    );
+    accountAction.value = null;
+    notify(
+      mode === "revoke"
+        ? "기존 로그인을 모두 해제했어요."
+        : account.is_active
+          ? "관리자 사용을 중지했어요."
+          : "관리자 사용을 재개했어요.",
+    );
+    await load();
+  } catch (e) {
+    accountError.value = e.message;
+  } finally {
+    busy.value = false;
+  }
+}
 onMounted(load);
 </script>
 <template>
@@ -145,6 +188,26 @@ onMounted(load);
               >
             </div>
           </div>
+          <div v-if="!resetMode" class="account-actions">
+            <button
+              class="button secondary small"
+              :disabled="busy || account.id === session.user?.id"
+              :aria-label="
+                account.username +
+                (account.is_active ? ' 사용 중지' : ' 사용 재개')
+              "
+              @click="chooseAction(account, 'status')"
+            >
+              {{ account.is_active ? "사용 중지" : "사용 재개" }}</button
+            ><button
+              class="button secondary small"
+              :disabled="busy || account.id === session.user?.id"
+              :aria-label="account.username + ' 로그인 해제'"
+              @click="chooseAction(account, 'revoke')"
+            >
+              로그인 해제
+            </button>
+          </div>
           <button
             v-if="resetMode"
             class="button secondary small"
@@ -169,6 +232,49 @@ onMounted(load);
         load();
       "
     />
+    <Modal
+      v-if="accountAction"
+      :title="
+        accountAction.mode === 'revoke'
+          ? '기존 로그인을 해제할까요?'
+          : accountAction.account.is_active
+            ? '관리자 사용을 중지할까요?'
+            : '관리자 사용을 재개할까요?'
+      "
+      :busy="busy"
+      @close="accountAction = null"
+      ><p class="modal-intro">
+        <strong
+          >{{ accountAction.account.display_name }} ({{
+            accountAction.account.username
+          }})</strong
+        ><br />{{
+          accountAction.mode === "revoke"
+            ? "모든 기기의 로그인을 해제해요. 계정과 비밀번호는 유지되며 다시 로그인할 수 있어요."
+            : accountAction.account.is_active
+              ? "이 계정은 로그인할 수 없게 되고 기존 로그인도 모두 해제됩니다. 등록한 노래와 일정은 유지돼요."
+              : "이 계정이 기존 비밀번호로 다시 로그인할 수 있게 돼요."
+        }}
+      </p>
+      <p v-if="accountError" class="form-error" role="alert">
+        {{ accountError }}
+      </p>
+      <div class="modal-actions">
+        <button
+          class="button secondary"
+          :disabled="busy"
+          @click="accountAction = null"
+        >
+          취소</button
+        ><button
+          class="button primary"
+          :disabled="busy"
+          @click="applyAccountAction"
+        >
+          {{ busy ? "처리 중…" : "확인하고 적용" }}
+        </button>
+      </div></Modal
+    >
     <AdminRegister
       v-if="!resetMode && creating"
       @close="creating = false"

@@ -4,7 +4,7 @@ defineProps({
   busy: Boolean,
   showStatus: Boolean,
 });
-defineEmits(["edit", "toggle", "delete"]);
+defineEmits(["edit", "toggle", "delete", "copy"]);
 </script>
 <template>
   <div class="song-management-actions">
@@ -31,6 +31,14 @@ defineEmits(["edit", "toggle", "delete"]);
       @click="$emit('toggle', song)"
     >
       {{ song.is_public ? "비공개로 전환" : "공개로 전환" }}
+    </button>
+    <button
+      type="button"
+      :disabled="busy"
+      :aria-label="song.title + ' 복사 등록'"
+      @click="$emit('copy', song)"
+    >
+      복사
     </button>
     <button
       type="button"

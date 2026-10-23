@@ -3,7 +3,7 @@ import { SONG_FIELDS } from "../../shared/song-rules.js";
 const matchingSnapshot = `SELECT COALESCE(json_group_array(json_array(id,title,artist)), '[]') FROM (
   SELECT DISTINCT s.id, s.title, s.artist FROM songs s JOIN json_each(?) j
   ON s.title = json_extract(j.value, '$.title') COLLATE NOCASE
-  AND s.artist = json_extract(j.value, '$.artist') COLLATE NOCASE ORDER BY s.id
+  AND s.artist = json_extract(j.value, '$.artist') COLLATE NOCASE WHERE s.deleted_at IS NULL ORDER BY s.id
 )`;
 
 export function findImportJob(db, owner, key) {
@@ -43,11 +43,11 @@ export async function commitSongImport(
     statements.push(
       db
         .prepare(
-          `INSERT INTO songs (${SONG_FIELDS.join(",")})
-      SELECT ${SONG_FIELDS.map((field) => `json_extract(value, '$.${field}')`).join(",")} FROM json_each(?)
+          `INSERT INTO songs (${SONG_FIELDS.join(",")},updated_by)
+      SELECT ${SONG_FIELDS.map((field) => `json_extract(value, '$.${field}')`).join(",")}, ? FROM json_each(?)
       WHERE EXISTS (SELECT 1 FROM song_import_jobs WHERE admin_user_id=? AND request_key=? AND claim_token=?)`,
         )
-        .bind(JSON.stringify(songs), owner, key, claim),
+        .bind(owner, JSON.stringify(songs), owner, key, claim),
     );
   }
   // The receipt, duplicate snapshot check and all row chunks commit atomically.

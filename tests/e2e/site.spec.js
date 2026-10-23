@@ -10,13 +10,13 @@ async function openAdminMenu(page, label) {
   await page
     .getByRole("navigation", { name: "관리 기능 선택", exact: true })
     .getByRole("link", {
-      name: ["관리자 관리", "메뉴 관리"].includes(label)
+      name: ["관리자 관리", "홈페이지 관리"].includes(label)
         ? label
         : "관리자 관리",
       exact: true,
     })
     .click();
-  if (!["관리자 관리", "메뉴 관리"].includes(label))
+  if (!["관리자 관리", "홈페이지 관리"].includes(label))
     await page
       .getByRole("navigation", { name: "관리자 메뉴", exact: true })
       .getByRole("link", { name: label, exact: true })
@@ -178,6 +178,7 @@ test("admin login, create/edit, private separation, public search/detail, CSV, d
   await visitor
     .getByRole("searchbox", { name: "곡명 또는 가수 검색" })
     .fill("QA");
+  await visitor.getByRole("button", { name: /상세 필터/ }).click();
   await visitor.getByLabel("숙련도 필터").selectOption("5");
   await expect(
     visitor.getByRole("link", { name: "QA 전용 곡", exact: true }),

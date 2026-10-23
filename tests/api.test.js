@@ -108,11 +108,13 @@ before(async () => {
     "0006_song_revisions.sql",
     "0007_site_navigation.sql",
     "0008_song_import_jobs.sql",
+    "0009_song_albums.sql",
+    "0010_operation_recovery.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
       .replace(/^--.*$/gm, "")
-      .split(";")
+      .split(/;[ \t]*(?:\r?\n|$)/)
       .map((s) => s.trim())
       .filter(Boolean))
       await db.prepare(statement).run();
@@ -149,6 +151,8 @@ beforeEach(async () => {
     .run();
   await db.batch(
     [
+      "DELETE FROM catalog_cache",
+      "DELETE FROM catalog_limits",
       "DELETE FROM song_import_jobs",
       "DELETE FROM site_navigation",
       "DELETE FROM site_settings",
@@ -158,6 +162,7 @@ beforeEach(async () => {
       "DELETE FROM admin_sessions",
       "DELETE FROM login_limits",
       "DELETE FROM admin_users WHERE username <> 'test-admin'",
+      "DELETE FROM operation_history",
     ].map((sql) => db.prepare(sql)),
   );
 });
@@ -356,7 +361,11 @@ test("CRUD persists in D1; proficiency and practice state remain independent; pu
     409,
   );
   assert.equal(
-    (await db.prepare("SELECT COUNT(*) AS total FROM songs").first()).total,
+    (
+      await db
+        .prepare("SELECT COUNT(*) AS total FROM songs WHERE deleted_at IS NULL")
+        .first()
+    ).total,
     1,
   );
 });
@@ -2661,4 +2670,669 @@ test("appearance rejects injected settings and malformed revisions without modif
     ).n,
     0,
   );
+});
+
+const linkedAlbum = () => ({
+  provider: "itunes",
+  track_id: 1591865716,
+  storefront: "US",
+  title: "Narrow road",
+  artist: "Lucia",
+  album_title: "Narrow road",
+  artwork_url:
+    "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/example/100x100bb.jpg",
+  source_url:
+    "https://music.apple.com/us/album/narrow-road/1591865712?i=1591865716",
+});
+test("album linkage preserves local fields and private notes, validates hosts, and retains the CSV contract", async () => {
+  const auth = await login(),
+    album = linkedAlbum(),
+    created = await create(auth, song({ album }));
+  assert.deepEqual(created.album, album);
+  assert.equal(created.title, song().title);
+  assert.equal(created.memo, song().memo);
+  const publicSong = await (await request("/api/songs/" + created.id)).json();
+  assert.deepEqual(publicSong.album, album);
+  assert.ok(!("memo" in publicSong));
+  assert.ok(!("revision" in publicSong));
+  for (const bad of [
+    { ...album, artwork_url: "https://evil.test/a.jpg" },
+    { ...album, source_url: "javascript:alert(1)" },
+    { ...album, track_id: 2 },
+    { ...album, privateMemo: "LEAK" },
+  ])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/songs/" + created.id,
+          "PATCH",
+          { album: bad, expected_revision: 1 },
+          auth,
+        )
+      ).status,
+      422,
+    );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/songs/" + created.id,
+        "PATCH",
+        { album: null, expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  assert.ok(
+    !("album" in (await (await request("/api/songs/" + created.id)).json())),
+  );
+  const csv = await (
+    await request("/api/admin/songs/export.csv", "GET", undefined, auth)
+  ).text();
+  assert.equal(
+    csv
+      .replace(/^\uFEFF/, "")
+      .split(/\r?\n/)[0]
+      .split(",").length,
+    10,
+  );
+});
+test("catalogue searches are protected, cached, globally bounded, and external failures do not block song saving", async () => {
+  const { searchCatalog } = await import("../server/services/catalog.js");
+  const auth = await login();
+  const path = "/api/admin/catalog/search",
+    input = { q: "소로", country: "US" };
+  assert.equal((await request(path, "POST", input)).status, 401);
+  assert.equal(
+    (await request(path, "POST", input, { ...auth, csrfToken: "" })).status,
+    403,
+  );
+  let calls = 0;
+  const fetcher = async (url) => {
+    calls++;
+    assert.equal(new URL(url).hostname, "itunes.apple.com");
+    const a = linkedAlbum();
+    return Response.json({
+      results: [
+        {
+          wrapperType: "track",
+          kind: "song",
+          trackId: a.track_id,
+          trackName: a.title,
+          artistName: a.artist,
+          collectionName: a.album_title,
+          artworkUrl100: a.artwork_url,
+          trackViewUrl: a.source_url,
+        },
+      ],
+    });
+  };
+  const data = await searchCatalog(db, input, fetcher);
+  assert.equal(data.items.length, 1);
+  assert.deepEqual(
+    await searchCatalog(db, input, () => {
+      throw Error("cache miss");
+    }),
+    data,
+  );
+  assert.equal(calls, 1);
+  assert.equal((await request(path, "POST", input, auth)).status, 200);
+  for (let index = 0; index < 9; index++)
+    await searchCatalog(db, { ...input, q: "새 검색 " + index }, fetcher);
+  await assert.rejects(
+    () => searchCatalog(db, { ...input, q: "한도 초과" }, fetcher),
+    (e) => e.status === 429 && e.retryAfter === 60,
+  );
+  const limit = await request(
+    path,
+    "POST",
+    { ...input, q: "또 다른 검색" },
+    auth,
+  );
+  assert.equal(limit.status, 429);
+  assert.equal(limit.headers.get("Retry-After"), "60");
+  await db.prepare("DELETE FROM catalog_limits").run();
+  await assert.rejects(
+    () =>
+      searchCatalog(db, { ...input, q: "장애" }, async () => {
+        throw Error("offline");
+      }),
+    (e) => e.code === "CATALOG_UNAVAILABLE",
+  );
+  assert.ok((await create(auth)).id);
+});
+test("homepage settings use atomic revisions, preserve menu-owned SOOP URLs, and exclude hidden featured songs", async () => {
+  const { DEFAULT_PROFILE } = await import("../shared/site-profile.js");
+  const auth = await login(),
+    first = await create(auth),
+    second = await create(auth, song({ title: "추천2" }));
+  const items = defaultNavigation().map((item) =>
+    item.id === "soop"
+      ? {
+          ...item,
+          href: "https://www.sooplive.com/station/saved",
+          visible: false,
+        }
+      : item,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/navigation",
+        "PUT",
+        { items, expected_revision: 0 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  const profile = {
+    ...structuredClone(DEFAULT_PROFILE),
+    intro_title: "지오의 새 인사",
+    featured_ids: [second.id, first.id],
+    social_links: [{ label: "공식 링크", href: "https://example.com/" }],
+  };
+  const results = await Promise.all(
+    [1, 2].map(() =>
+      request(
+        "/api/admin/site",
+        "PUT",
+        { ...profile, expected_revision: 0 },
+        auth,
+      ),
+    ),
+  );
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+  const data = await (await request("/api/site")).json();
+  assert.equal(data.intro_title, profile.intro_title);
+  assert.equal(data.soop_url, "https://www.sooplive.com/station/saved");
+  assert.deepEqual(
+    data.featured.map((s) => s.id),
+    [second.id, first.id],
+  );
+  assert.ok(!JSON.stringify(data).includes("PRIVATE_TEST_MEMO"));
+  assert.ok(!("featured_ids" in data));
+  await request(
+    "/api/admin/songs/" + second.id,
+    "PATCH",
+    { is_public: false, expected_revision: 1 },
+    auth,
+  );
+  assert.deepEqual(
+    (await (await request("/api/site")).json()).featured.map((s) => s.id),
+    [first.id],
+  );
+  for (const bad of [
+    {
+      ...profile,
+      social_links: [{ label: "위험", href: "javascript:alert(1)" }],
+    },
+    { ...profile, featured_ids: [first.id, first.id] },
+    { ...profile, featured_ids: [second.id] },
+    { ...profile, css: "unsafe" },
+  ])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/site",
+          "PUT",
+          { ...bad, expected_revision: 1 },
+          auth,
+        )
+      ).status,
+      422,
+    );
+  assert.equal(
+    (await (await request("/api/admin/site", "GET", undefined, auth)).json())
+      .revision,
+    1,
+  );
+});
+test("trash restores songs privately with metadata intact and stale editors cannot overwrite a restored item", async () => {
+  const auth = await login(),
+    created = await create(auth, song({ album: linkedAlbum() })),
+    path = "/api/admin/songs/" + created.id;
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1 }, auth)).status,
+    200,
+  );
+  assert.equal((await request("/api/songs/" + created.id)).status, 404);
+  assert.equal((await request(path, "GET", undefined, auth)).status, 404);
+  assert.equal(
+    (
+      await (
+        await request(
+          "/api/admin/songs?include_filters=1",
+          "GET",
+          undefined,
+          auth,
+        )
+      ).json()
+    ).pagination.total,
+    0,
+  );
+  const trash = await (
+    await request("/api/admin/recovery/songs", "GET", undefined, auth)
+  ).json();
+  assert.equal(trash.items.length, 1);
+  assert.ok(!JSON.stringify(trash).includes(song().memo));
+  assert.equal(trash.items[0].revision, 2);
+  const recovery = "/api/admin/recovery/songs/" + created.id;
+  assert.equal(
+    (
+      await request(
+        recovery + "/restore",
+        "POST",
+        { expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        recovery + "/restore",
+        "POST",
+        { expected_revision: 2 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  const restored = await (await request(path, "GET", undefined, auth)).json();
+  assert.equal(restored.is_public, false);
+  assert.equal(restored.revision, 3);
+  assert.equal(restored.memo, song().memo);
+  assert.deepEqual(restored.album, linkedAlbum());
+  assert.equal(
+    (
+      await request(
+        path,
+        "PATCH",
+        { title: "이전 편집", expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await request(recovery, "DELETE", { expected_revision: 3 }, auth)).status,
+    409,
+  );
+  await request(path, "DELETE", { expected_revision: 3 }, auth);
+  assert.equal(
+    (await request(recovery, "DELETE", { expected_revision: 4 }, auth)).status,
+    200,
+  );
+  assert.equal(
+    await db
+      .prepare("SELECT id FROM songs WHERE id=?")
+      .bind(created.id)
+      .first(),
+    null,
+  );
+  const history = await (
+    await request("/api/admin/recovery/history", "GET", undefined, auth)
+  ).json();
+  assert.deepEqual(
+    history.items.map((row) => row.action),
+    ["purge", "trash", "restore", "trash", "create"],
+  );
+  assert.ok(
+    history.items.every((row) => row.actor === originalAdmin.display_name),
+  );
+  assert.ok(!JSON.stringify(history).includes(song().memo));
+});
+test("individual event recovery keeps times and other events while remaining absent from normal lists and backups in trash", async () => {
+  const auth = await login(),
+    event = await createScheduleEvent(auth),
+    other = await createScheduleEvent(auth, { title: "남겨둘 일정" });
+  const path = "/api/admin/schedule-events/" + event.id;
+  assert.equal(
+    (await request(path, "DELETE", { expected_revision: 1 }, auth)).status,
+    200,
+  );
+  assert.equal((await request(path, "GET", undefined, auth)).status, 404);
+  const backup = await (
+    await request("/api/admin/schedule-events/backup", "GET", undefined, auth)
+  ).json();
+  assert.deepEqual(
+    backup.items.map((row) => row.id),
+    [other.id],
+  );
+  const recovery = "/api/admin/recovery/events/" + event.id;
+  assert.equal(
+    (
+      await request(
+        recovery + "/restore",
+        "POST",
+        { expected_revision: 2 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  const restored = await (await request(path, "GET", undefined, auth)).json();
+  assert.equal(restored.starts_at, event.starts_at);
+  assert.equal(restored.ends_at, event.ends_at);
+  assert.equal(restored.revision, 3);
+  assert.equal(
+    (
+      await request(
+        path,
+        "PUT",
+        { ...eventPayload(), title: "이전 편집", expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+});
+test("bulk song edits report stale rows separately, preserve private data, and reject invalid batches without writes", async () => {
+  const auth = await login(),
+    first = await create(auth, song({ title: "일괄1", album: linkedAlbum() })),
+    second = await create(auth, song({ title: "일괄2" }));
+  await request(
+    "/api/admin/songs/" + second.id,
+    "PATCH",
+    { proficiency: 5, expected_revision: 1 },
+    auth,
+  );
+  const body = {
+    items: [first, second].map((row) => ({
+      id: row.id,
+      expected_revision: row.revision,
+    })),
+    changes: { practice_status: "completed" },
+  };
+  const result = await (
+    await request("/api/admin/songs/bulk", "PATCH", body, auth)
+  ).json();
+  assert.deepEqual(result, { applied: [first.id], conflicted: [second.id] });
+  const saved = await (
+    await request("/api/admin/songs/" + first.id, "GET", undefined, auth)
+  ).json();
+  assert.equal(saved.practice_status, "completed");
+  assert.equal(saved.proficiency, first.proficiency);
+  assert.equal(saved.memo, first.memo);
+  assert.deepEqual(saved.album, first.album);
+  for (const invalid of [
+    { ...body, changes: { memo: "DO NOT CHANGE" } },
+    { ...body, changes: { proficiency: 0 } },
+    { ...body, items: [body.items[0], body.items[0]] },
+    {
+      ...body,
+      items: Array.from({ length: 21 }, (_, i) => ({
+        id: i + 1,
+        expected_revision: 1,
+      })),
+    },
+  ])
+    assert.equal(
+      (await request("/api/admin/songs/bulk", "PATCH", invalid, auth)).status,
+      422,
+    );
+  const history = await (
+    await request("/api/admin/recovery/history", "GET", undefined, auth)
+  ).json();
+  assert.equal(
+    history.items.filter((row) => row.action === "update").length,
+    2,
+  );
+});
+test("admin status revokes sessions, preserves content, rejects self/stale changes and supports safe reactivation", async () => {
+  const auth = await login();
+  const created = await request(
+    "/api/admin/users",
+    "POST",
+    {
+      username: "status-target",
+      display_name: "중지 대상",
+      password,
+      password_confirmation: password,
+    },
+    auth,
+  );
+  assert.equal(created.status, 201);
+  const target = await created.json();
+  const signIn = async () => {
+    const response = await request("/api/admin/login", "POST", {
+      username: "status-target",
+      password,
+    });
+    assert.equal(response.status, 200);
+    const value = await response.json();
+    return {
+      cookie: response.headers.get("Set-Cookie").split(";")[0],
+      csrfToken: value.csrfToken,
+    };
+  };
+  let other = await signIn();
+  const content = await create(other);
+  const path = "/api/admin/users/" + target.id;
+  assert.equal(
+    (
+      await request(
+        "/api/admin/users/" + originalAdmin.id + "/status",
+        "PATCH",
+        { is_active: false, expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    422,
+  );
+  assert.equal(
+    (await request(path + "/revoke-sessions", "POST", undefined, auth)).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/admin/me", "GET", undefined, other)).status,
+    401,
+  );
+  other = await signIn();
+  assert.equal(
+    (
+      await request(
+        path + "/status",
+        "PATCH",
+        { is_active: false, expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/admin/me", "GET", undefined, other)).status,
+    401,
+  );
+  assert.equal(
+    (
+      await request("/api/admin/login", "POST", {
+        username: "status-target",
+        password,
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (await request("/api/admin/songs/" + content.id, "GET", undefined, auth))
+      .status,
+    200,
+  );
+  assert.equal(
+    (
+      await request(
+        path + "/status",
+        "PATCH",
+        { is_active: true, expected_revision: 1 },
+        auth,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        path + "/status",
+        "PATCH",
+        { is_active: true, expected_revision: 2 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  await signIn();
+  const list = await (
+    await request("/api/admin/users", "GET", undefined, auth)
+  ).json();
+  assert.ok(!JSON.stringify(list).includes("password_hash"));
+  assert.equal(list.items.find((row) => row.id === target.id).revision, 3);
+});
+test("new management operations share authentication, origin, CSRF and forced-password protection", async () => {
+  const auth = await login();
+  const operations = [
+    ["PUT", "/api/admin/site", {}],
+    ["POST", "/api/admin/catalog/search", { q: "test", country: "US" }],
+    ["PATCH", "/api/admin/songs/bulk", {}],
+    ["POST", "/api/admin/recovery/songs/1/restore", { expected_revision: 1 }],
+    ["DELETE", "/api/admin/recovery/events/1", { expected_revision: 1 }],
+    [
+      "PATCH",
+      "/api/admin/users/99/status",
+      { expected_revision: 1, is_active: false },
+    ],
+    ["POST", "/api/admin/users/99/revoke-sessions", undefined],
+  ];
+  for (const [method, path, body] of operations) {
+    assert.equal((await request(path, method, body)).status, 401);
+    assert.equal(
+      (await request(path, method, body, { ...auth, csrfToken: "" })).status,
+      403,
+    );
+    assert.equal(
+      (
+        await request(path, method, body, auth, {
+          Origin: "https://elsewhere.invalid",
+        })
+      ).status,
+      403,
+    );
+  }
+  for (const path of [
+    "/api/admin/site",
+    "/api/admin/recovery/songs",
+    "/api/admin/recovery/events",
+    "/api/admin/recovery/history",
+  ])
+    assert.equal((await request(path)).status, 401);
+  await db
+    .prepare("UPDATE admin_users SET must_change_password=1 WHERE id=?")
+    .bind(originalAdmin.id)
+    .run();
+  for (const [method, path, body] of operations)
+    assert.equal((await request(path, method, body, auth)).status, 403);
+});
+
+test("concurrent administrators cannot deactivate each other into a zero-active-account state", async () => {
+  const auth = await login();
+  const r = await request(
+    "/api/admin/users",
+    "POST",
+    {
+      username: "race-admin",
+      display_name: "동시 변경",
+      password,
+      password_confirmation: password,
+    },
+    auth,
+  );
+  const target = await r.json();
+  const response = await request("/api/admin/login", "POST", {
+    username: "race-admin",
+    password,
+  });
+  const signed = await response.json();
+  const other = {
+    cookie: response.headers.get("Set-Cookie").split(";")[0],
+    csrfToken: signed.csrfToken,
+  };
+  const primary = await db
+    .prepare("SELECT revision FROM admin_users WHERE id=?")
+    .bind(originalAdmin.id)
+    .first();
+  const results = await Promise.all([
+    request(
+      "/api/admin/users/" + target.id + "/status",
+      "PATCH",
+      { is_active: false, expected_revision: 1 },
+      auth,
+    ),
+    request(
+      "/api/admin/users/" + originalAdmin.id + "/status",
+      "PATCH",
+      { is_active: false, expected_revision: primary.revision },
+      other,
+    ),
+  ]);
+  assert.equal(results.filter((row) => row.status === 200).length, 1);
+  assert.equal(
+    (
+      await db
+        .prepare("SELECT COUNT(*) n FROM admin_users WHERE is_active=1")
+        .first()
+    ).n,
+    1,
+  );
+});
+test("album-inclusive backup is paged and authenticated and excludes trash and actor fields", async () => {
+  const auth = await login(),
+    first = await create(auth, song({ album: linkedAlbum() })),
+    second = await create(auth, song({ title: "백업 다음 곡" }));
+  assert.equal((await request("/api/admin/songs/backup")).status, 401);
+  let value = await (
+    await request("/api/admin/songs/backup", "GET", undefined, auth)
+  ).json();
+  assert.equal(value.items.length, 2);
+  assert.deepEqual(value.items[0].album, linkedAlbum());
+  assert.equal(value.items[0].memo, song().memo);
+  assert.ok(!("updated_by" in value.items[0]));
+  assert.equal(value.next_after, null);
+  value = await (
+    await request(
+      "/api/admin/songs/backup?after=" + first.id,
+      "GET",
+      undefined,
+      auth,
+    )
+  ).json();
+  assert.deepEqual(
+    value.items.map((row) => row.id),
+    [second.id],
+  );
+  await request(
+    "/api/admin/songs/" + first.id,
+    "DELETE",
+    { expected_revision: 1 },
+    auth,
+  );
+  value = await (
+    await request("/api/admin/songs/backup", "GET", undefined, auth)
+  ).json();
+  assert.deepEqual(
+    value.items.map((row) => row.id),
+    [second.id],
+  );
+  for (const query of ["after=-1", "after=0", "after=1&after=2", "other=1"])
+    assert.equal(
+      (
+        await request(
+          "/api/admin/songs/backup?" + query,
+          "GET",
+          undefined,
+          auth,
+        )
+      ).status,
+      400,
+    );
 });

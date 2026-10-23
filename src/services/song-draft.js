@@ -1,6 +1,14 @@
+import { validateAlbum } from "../../shared/album.js";
 // Drafts may contain incomplete inputs; final submission still uses validateDraft/API validation.
 export function isSongDraft(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  if (Object.hasOwn(value, "album")) {
+    try {
+      validateAlbum(value.album);
+    } catch {
+      return false;
+    }
+  }
   const strings = {
     title: 200,
     artist: 200,
@@ -21,7 +29,8 @@ export function isSongDraft(value) {
   ];
   if (
     Object.keys(value).some(
-      (key) => !allowed.includes(key) && key !== "sourceRevision",
+      (key) =>
+        !allowed.includes(key) && key !== "sourceRevision" && key !== "album",
     ) ||
     (Object.hasOwn(value, "sourceRevision") &&
       (!Number.isSafeInteger(value.sourceRevision) ||

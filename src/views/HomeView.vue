@@ -1,4 +1,5 @@
 <script setup>
+import { siteProfile } from "../services/site-profile.js";
 import Notice from "../components/Notice.vue";
 import SongCard from "../components/SongCard.vue";
 defineProps({
@@ -14,8 +15,12 @@ const emit = defineEmits(["navigate", "open", "retry"]);
   <section class="home-hero">
     <div class="home-hero-copy">
       <span class="eyebrow hero-eyebrow">✦ ZIO'S LITTLE MUSIC SPACE</span>
-      <h1>지오의 작은<br /><em>음악 공간</em></h1>
-      <p>
+      <h1 v-if="connected">{{ siteProfile.intro_title }}</h1>
+      <h1 v-else>지오의 작은<br /><em>음악 공간</em></h1>
+      <p v-if="connected" class="profile-multiline">
+        {{ siteProfile.intro_text }}
+      </p>
+      <p v-else>
         좋은 노래로, 오늘도 함께해요.<br />지오의 노래와 방송 이야기를
         만나보세요.
       </p>
@@ -30,7 +35,7 @@ const emit = defineEmits(["navigate", "open", "retry"]);
         >
         <a
           class="btn btn-hero-outline"
-          href="https://www.sooplive.com/station/bluejin0129"
+          :href="siteProfile.soop_url"
           target="_blank"
           rel="noopener noreferrer"
           >방송국 바로가기 ↗</a
@@ -82,6 +87,20 @@ const emit = defineEmits(["navigate", "open", "retry"]);
     </div>
   </section>
 
+  <div
+    v-if="connected && siteProfile.social_links.length"
+    class="profile-social-links"
+  >
+    <a
+      v-for="link in siteProfile.social_links"
+      :key="link.href"
+      :href="link.href"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="button secondary"
+      >{{ link.label }} ↗</a
+    >
+  </div>
   <div class="home-two-col">
     <section class="home-soft-card">
       <span class="eyebrow">HELLO, ZIO</span>
@@ -105,7 +124,7 @@ const emit = defineEmits(["navigate", "open", "retry"]);
       </p>
       <a
         class="text-link"
-        href="https://www.sooplive.com/station/bluejin0129"
+        :href="siteProfile.soop_url"
         target="_blank"
         rel="noopener noreferrer"
         >SOOP 방송국 ↗</a

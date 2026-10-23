@@ -26,7 +26,8 @@ export function toSongView(song, { admin = false } = {}) {
     isPublic: Boolean(song.is_public),
     createdAt: song.created_at,
     updatedAt: song.updated_at,
-    cover: songCover({ genre: song.genre }),
+    cover: song.album?.artwork_url || songCover({ genre: song.genre }),
+    ...(song.album ? { album: song.album } : {}),
     links: [],
   };
   if (admin) {
@@ -47,6 +48,7 @@ export function toSongInput(view, { admin = false } = {}) {
     balloon_cost: Number(view.balloonCount),
     is_public: view.isPublic !== false,
   };
+  if (Object.hasOwn(view, "album")) input.album = view.album;
   if (admin) input.memo = (view.privateMemo || "").trim();
   return input;
 }

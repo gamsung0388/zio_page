@@ -34,7 +34,9 @@ export default {
             },
           },
           error.status,
-          error.status === 429 ? { "Retry-After": "900" } : {},
+          error.status === 429
+            ? { "Retry-After": String(error.retryAfter || 900) }
+            : {},
         );
       // Do not log SQL parameters, credentials, cookies, or stack traces.
       console.error("API: storage_or_internal_failure");

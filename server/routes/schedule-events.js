@@ -86,6 +86,7 @@ export async function eventRoutes(request, env, path, auth) {
       env.DB,
       id,
       validateEventRevision(body.expected_revision),
+      auth.user.id,
     );
     if (!removed) conflict();
     return json({ ok: true, id });

@@ -10,8 +10,9 @@ defineProps({
   items: { type: Array, required: true },
   busy: Boolean,
   list: Boolean,
+  selected: { type: Array, default: () => [] },
 });
-defineEmits(["edit", "toggle", "delete"]);
+defineEmits(["edit", "toggle", "delete", "copy", "select"]);
 </script>
 <template>
   <div v-if="list" class="admin-song-table-wrap">
@@ -32,6 +33,17 @@ defineEmits(["edit", "toggle", "delete"]);
       <tbody>
         <tr v-for="song in items" :key="song.id">
           <td>
+            <label class="song-select"
+              ><input
+                type="checkbox"
+                :checked="selected.includes(song.id)"
+                :disabled="
+                  busy || (!selected.includes(song.id) && selected.length >= 20)
+                "
+                :aria-label="song.title + ' 선택'"
+                @change="$emit('select', song)"
+              />선택</label
+            >
             <button
               type="button"
               class="admin-song-title"
@@ -69,6 +81,7 @@ defineEmits(["edit", "toggle", "delete"]);
               @edit="$emit('edit', $event)"
               @toggle="$emit('toggle', $event)"
               @delete="$emit('delete', $event)"
+              @copy="$emit('copy', $event)"
             />
           </td>
         </tr>
@@ -77,6 +90,17 @@ defineEmits(["edit", "toggle", "delete"]);
   </div>
   <div v-else class="song-grid admin-song-grid">
     <article v-for="song in items" :key="song.id" class="managed-song">
+      <label class="song-select"
+        ><input
+          type="checkbox"
+          :checked="selected.includes(song.id)"
+          :disabled="
+            busy || (!selected.includes(song.id) && selected.length >= 20)
+          "
+          :aria-label="song.title + ' 선택'"
+          @change="$emit('select', song)"
+        />선택</label
+      >
       <SongCard :song="toSongView(song)" @open="$emit('edit', song)" />
       <SongManagementActions
         :song="song"
@@ -85,6 +109,7 @@ defineEmits(["edit", "toggle", "delete"]);
         @edit="$emit('edit', $event)"
         @toggle="$emit('toggle', $event)"
         @delete="$emit('delete', $event)"
+        @copy="$emit('copy', $event)"
       />
     </article>
   </div>

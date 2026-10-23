@@ -200,7 +200,7 @@ test("guide performs no data writes and its menu, date registration and content 
       page
         .getByRole("navigation", { name: "일정 관리 메뉴" })
         .getByRole("link"),
-    ).toHaveCount(4);
+    ).toHaveCount(5);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

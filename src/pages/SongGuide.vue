@@ -110,8 +110,10 @@ const sections = [
         여부는 지오의 방송 중 안내를 따라주세요.
       </p>
       <p class="reading-guide-note">
-        기본 커버가 보이더라도 같은 사진의 곡이라는 뜻은 아니에요. 곡명과
-        아티스트를 함께 확인하면 원하는 곡을 찾기 쉬워요.
+        앨범 정보·이미지는 Apple iTunes Search API에서 가져옵니다. 연결된 곡은
+        실제 표지와 공식 음원 링크를 보여줘요. iTunes는 Apple Inc.의 상표입니다.
+        기본 커버는 분위기를 위한 그림입니다. 곡명과 아티스트를 함께 확인하면
+        원하는 곡을 찾기 쉬워요.
       </p>
     </template>
     <template #songs-faq>

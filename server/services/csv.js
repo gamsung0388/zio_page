@@ -146,7 +146,7 @@ export async function inspectCSV(db, text) {
       .prepare(
         `SELECT DISTINCT s.id, s.title, s.artist FROM songs s
       JOIN json_each(?) j ON s.title = json_extract(j.value,'$.title') COLLATE NOCASE
-      AND s.artist = json_extract(j.value,'$.artist') COLLATE NOCASE ORDER BY s.id`,
+      AND s.artist = json_extract(j.value,'$.artist') COLLATE NOCASE WHERE s.deleted_at IS NULL ORDER BY s.id`,
       )
       .bind(
         JSON.stringify(

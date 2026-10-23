@@ -6,6 +6,7 @@ import {
   PROFICIENCY_MIN,
   PROFICIENCY_MAX,
 } from "../../shared/song-rules.js";
+import { validateAlbum } from "../../shared/album.js";
 export { SONG_FIELDS };
 export const STATUSES = PRACTICE_OPTIONS.map((option) => option.value);
 const defaults = {
@@ -28,7 +29,7 @@ export function validateSong(input, partial = false) {
   const errors = [];
   const output = partial ? {} : { ...defaults };
   for (const key of Object.keys(input)) {
-    if (!SONG_FIELDS.includes(key))
+    if (!SONG_FIELDS.includes(key) && key !== "album")
       errors.push({ field: key, message: "허용되지 않은 필드입니다." });
   }
   for (const field of SONG_FIELDS) {
@@ -67,6 +68,13 @@ export function validateSong(input, partial = false) {
     } else if (typeof value !== "boolean")
       errors.push({ field, message: "공개 여부는 boolean이어야 합니다." });
     else output[field] = value;
+  }
+  if (Object.hasOwn(input, "album")) {
+    try {
+      output.album = validateAlbum(input.album);
+    } catch (error) {
+      errors.push({ field: "album", message: error.message });
+    }
   }
   if (partial && Object.keys(output).length === 0)
     errors.push({ field: "", message: "변경할 필드가 없습니다." });

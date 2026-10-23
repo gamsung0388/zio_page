@@ -54,6 +54,16 @@ const router = createRouter({
       meta: { title: "관리", admin: true },
     },
     {
+      path: "/admin/site",
+      component: () => import("../pages/AdminSite.vue"),
+      meta: { title: "홈페이지 관리", admin: true },
+    },
+    {
+      path: "/admin/recovery",
+      component: () => import("../pages/AdminRecovery.vue"),
+      meta: { title: "휴지통과 변경 기록", admin: true },
+    },
+    {
       path: "/admin/appearance",
       component: () => import("../pages/AdminAppearance.vue"),
       meta: { title: "테마 설정", admin: true },

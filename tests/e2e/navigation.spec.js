@@ -56,8 +56,8 @@ test("management groups two settings destinations independently from song and sc
     cards.getByRole("link", { name: "관리자 관리", exact: true }),
   ).toHaveAttribute("href", "/admin/users");
   await expect(
-    cards.getByRole("link", { name: "메뉴 관리", exact: true }),
-  ).toHaveAttribute("href", "/admin/menus");
+    cards.getByRole("link", { name: "홈페이지 관리", exact: true }),
+  ).toHaveAttribute("href", "/admin/site");
   await expect(
     page.locator(".sidebar-management-children").getByRole("link"),
   ).toHaveCount(2);
@@ -86,12 +86,12 @@ test("management groups two settings destinations independently from song and sc
     .click();
   await expect(page).toHaveURL(/\/admin$/);
   expect(navigationReads).toBe(0);
-  await cards.getByRole("link", { name: "메뉴 관리", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/menus$/);
+  await cards.getByRole("link", { name: "홈페이지 관리", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/site$/);
   await expect(
     page
       .locator(".sidebar-management-children")
-      .getByRole("link", { name: "메뉴 관리", exact: true }),
+      .getByRole("link", { name: "홈페이지 관리", exact: true }),
   ).toHaveClass(/active/);
   await page.context().clearCookies();
   await page.goto("/admin/menus");
@@ -380,8 +380,9 @@ test("unsaved menu edits survive reload as a versioned draft and navigation conf
   await expect(page).toHaveURL(/\/admin$/);
   await page
     .getByRole("navigation", { name: "관리 기능 선택" })
-    .getByRole("link", { name: "메뉴 관리", exact: true })
+    .getByRole("link", { name: "홈페이지 관리", exact: true })
     .click();
+  await page.getByRole("link", { name: "메뉴 구성", exact: true }).click();
   await expect(page.locator(".menu-edit-row")).toHaveCount(6);
   await expect(
     page.getByRole("button", { name: "초안 복구", exact: true }),
@@ -409,5 +410,5 @@ test("unsaved menu edits survive reload as a versioned draft and navigation conf
   const acceptedBack = page.waitForEvent("dialog");
   await page.evaluate(() => history.back());
   await (await acceptedBack).accept();
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin\/site$/);
 });

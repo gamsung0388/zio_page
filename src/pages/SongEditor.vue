@@ -1,4 +1,6 @@
 <script setup>
+import { stagedSongBackup } from "../services/song-backup.js";
+import { toSongView } from "../services/song-adapter.js";
 import GuideLink from "../components/guide/GuideLink.vue";
 import { songGuideLink } from "../services/song-guide.js";
 import { ref, onMounted, onBeforeUnmount } from "vue";
@@ -12,7 +14,7 @@ import Notice from "../components/Notice.vue";
 const route = useRoute(),
   router = useRouter(),
   song = ref(null),
-  loading = ref(Boolean(route.params.id)),
+  loading = ref(Boolean(route.params.id || route.query.copy)),
   error = ref(""),
   editor = ref(null),
   conflict = ref(false),
@@ -29,13 +31,44 @@ function destination() {
     : "/admin/songs";
 }
 async function load() {
-  if (!route.params.id) return;
+  if (route.query.backup === "1") {
+    if (!stagedSongBackup.value) {
+      error.value =
+        "가져올 백업을 다시 선택해주세요. 노래 관리의 JSON 백업 가져오기를 이용해주세요.";
+      loading.value = false;
+      return;
+    }
+    song.value = {
+      ...toSongView({ ...stagedSongBackup.value, id: "" }, { admin: true }),
+      id: undefined,
+      revision: 0,
+      isPublic: false,
+    };
+    stagedSongBackup.value = null;
+    loading.value = false;
+    return;
+  }
+  const source = route.params.id || route.query.copy;
+  if (!source) return;
+  if (!/^[1-9]\d*$/.test(String(source))) {
+    error.value = "복사할 노래를 확인해주세요.";
+    loading.value = false;
+    return;
+  }
   loading.value = true;
   error.value = "";
   try {
-    song.value = await getAdminSong(route.params.id, {
+    song.value = await getAdminSong(source, {
       signal: controller.signal,
     });
+    if (!route.params.id)
+      song.value = {
+        ...song.value,
+        id: undefined,
+        revision: 0,
+        isPublic: false,
+        privateMemo: "",
+      };
     reviewBase.value = song.value;
   } catch (err) {
     if (err.name !== "AbortError") error.value = err.message;
@@ -45,7 +78,7 @@ async function load() {
 }
 async function save(draft) {
   try {
-    if (song.value && !draft.sourceRevision) {
+    if (song.value?.id && !draft.sourceRevision) {
       const error = new Error(
         "이전 초안이에요. 저장된 내용과 비교한 뒤 다시 저장해주세요.",
       );
@@ -57,7 +90,7 @@ async function save(draft) {
     if (err.code === "SONG_CONFLICT") conflict.value = true;
     throw err;
   }
-  const message = song.value
+  const message = song.value?.id
     ? "노래를 수정했습니다."
     : "새 노래를 등록했습니다.";
   editor.value.markSaved();
@@ -136,7 +169,11 @@ onBeforeUnmount(() => {
     v-if="!loading && !error"
     ref="editor"
     :song="song"
-    :draft-scope="'song:' + (route.params.id || 'new')"
+    :draft-scope="
+      'song:' +
+      (route.params.id ||
+        (route.query.copy ? 'copy-' + route.query.copy : 'new'))
+    "
     connected
     :save-action="save"
     @cancel="router.push(destination())"

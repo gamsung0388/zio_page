@@ -21,7 +21,7 @@ export async function listAdmins(db, page, pageSize) {
   const [rows, count] = await db.batch([
     db
       .prepare(
-        "SELECT id, username, display_name, is_active, must_change_password, created_at FROM admin_users ORDER BY id ASC LIMIT ? OFFSET ?",
+        "SELECT id, username, display_name, is_active, must_change_password, created_at, revision FROM admin_users ORDER BY id ASC LIMIT ? OFFSET ?",
       )
       .bind(pageSize, (page - 1) * pageSize),
     db.prepare("SELECT COUNT(*) AS total FROM admin_users"),

@@ -1,3 +1,4 @@
+import { siteProfile } from "./site-profile.js";
 import { shallowRef, watch } from "vue";
 import { api, session } from "./api.js";
 import { useAsyncResource } from "./useAsyncResource.js";
@@ -9,6 +10,8 @@ export function applySiteNavigation(data, userId) {
   if (String(userId || "public") !== owner) return;
   if (data.revision !== undefined && data.revision < savedRevision) return;
   siteMenus.value = data.items;
+  const soop = data.items.find((item) => item.id === "soop");
+  if (soop) siteProfile.value = { ...siteProfile.value, soop_url: soop.href };
   savedRevision = data.revision || 0;
 }
 export function useSiteNavigation() {

@@ -1,8 +1,15 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import Icon from "./Icon.vue";
 import { proficiencyLabels, practiceLabels } from "../services/song-labels.js";
 const props = defineProps({ filters: Object, facets: Object, admin: Boolean });
+const expanded = ref(false);
+const filterCount = computed(
+  () =>
+    ["proficiency", "practice_status", "genre", "language", "is_public"].filter(
+      (k) => props.filters[k],
+    ).length,
+);
 const emit = defineEmits(["update", "search", "reset"]);
 const active = computed(() =>
   [
@@ -27,7 +34,16 @@ const active = computed(() =>
         maxlength="200"
         @input="emit('search', $event.target.value)"
     /></label>
-    <div class="filter-row">
+    <button
+      class="filter-disclosure"
+      type="button"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      상세 필터 <span v-if="filterCount">{{ filterCount }}개 적용</span
+      ><span>{{ expanded ? "접기" : "펼치기" }}</span>
+    </button>
+    <div class="filter-row" :class="{ 'is-expanded': expanded }">
       <span class="filter-caption"><Icon name="filter" :size="17" />필터</span>
       <label
         ><span class="sr-only">숙련도 필터</span

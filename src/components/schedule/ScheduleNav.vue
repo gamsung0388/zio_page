@@ -74,5 +74,6 @@ const day = computed(() =>
       exact-active-class=""
       >사용 가이드</RouterLink
     >
+    <RouterLink to="/admin/recovery?type=events">일정 휴지통</RouterLink>
   </nav>
 </template>

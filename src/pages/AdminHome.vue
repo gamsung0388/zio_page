@@ -21,7 +21,7 @@ const work = computed(() =>
         <h1>우리 공간을<br />함께 가꿔요<span>.</span></h1>
         <p>
           {{ session.user?.display_name || session.user?.username }}님,
-          반가워요.<br />사람과 메뉴를 살피는 일은 이곳에서 시작해요.
+          반가워요.<br />사람과 홈페이지를 살피는 일은 이곳에서 시작해요.
         </p>
         <div class="management-welcome-tag"><span></span>관리</div>
       </div>
@@ -63,7 +63,7 @@ const work = computed(() =>
           <span class="management-feature-detail">{{
             entry.id === "accounts"
               ? "관리자 목록 · 등록 · 비밀번호"
-              : "이름 · 순서 · 링크 추가 · 테마"
+              : "소개 · 추천 곡 · 메뉴 · 테마"
           }}</span></RouterLink
         >
       </nav>
@@ -75,6 +75,9 @@ const work = computed(() =>
         <p>콘텐츠를 다루는 메뉴는 ‘운영’에 모아 두었어요.</p>
       </div>
       <div class="management-work-links">
+        <RouterLink to="/admin/recovery" class="management-work-link"
+          >휴지통과 변경 기록</RouterLink
+        >
         <MenuLink
           v-for="item in work"
           :key="item.id"

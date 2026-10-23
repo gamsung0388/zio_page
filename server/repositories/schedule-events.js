@@ -4,13 +4,17 @@ const COLUMNS =
 export async function getEvent(db, id) {
   return eventFromRow(
     await db
-      .prepare("SELECT " + COLUMNS + " FROM admin_schedule_events WHERE id=?")
+      .prepare(
+        "SELECT " +
+          COLUMNS +
+          " FROM admin_schedule_events WHERE deleted_at IS NULL AND id=?",
+      )
       .bind(id)
       .first(),
   );
 }
 export async function listEvents(db, { from, to, kind, page, page_size }) {
-  const where = ["starts_at < ?", "ends_at > ?"],
+  const where = ["deleted_at IS NULL", "starts_at < ?", "ends_at > ?"],
     args = [to, from];
   if (kind) {
     where.push("kind=?");
@@ -61,7 +65,7 @@ export async function updateEvent(db, id, event, revision, userId) {
   return eventFromRow(
     await db
       .prepare(
-        "UPDATE admin_schedule_events SET title=?,description=?,kind=?,time_mode=?,starts_at=?,ends_at=?,revision=revision+1,updated_by=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND revision=? RETURNING " +
+        "UPDATE admin_schedule_events SET title=?,description=?,kind=?,time_mode=?,starts_at=?,ends_at=?,revision=revision+1,updated_by=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE deleted_at IS NULL AND id=? AND revision=? RETURNING " +
           COLUMNS,
       )
       .bind(
@@ -78,12 +82,12 @@ export async function updateEvent(db, id, event, revision, userId) {
       .first(),
   );
 }
-export async function deleteEvent(db, id, revision) {
+export async function deleteEvent(db, id, revision, actor = null) {
   return db
     .prepare(
-      "DELETE FROM admin_schedule_events WHERE id=? AND revision=? RETURNING id",
+      "UPDATE admin_schedule_events SET deleted_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),revision=revision+1,updated_by=? WHERE deleted_at IS NULL AND id=? AND revision=? RETURNING id",
     )
-    .bind(id, revision)
+    .bind(actor, id, revision)
     .first();
 }
 export async function backupEvents(db, after) {
@@ -92,7 +96,7 @@ export async function backupEvents(db, after) {
       .prepare(
         "SELECT " +
           COLUMNS +
-          " FROM admin_schedule_events WHERE id>? ORDER BY id LIMIT 201",
+          " FROM admin_schedule_events WHERE deleted_at IS NULL AND id>? ORDER BY id LIMIT 201",
       )
       .bind(after)
       .all()

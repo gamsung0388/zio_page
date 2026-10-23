@@ -10,23 +10,30 @@ export const SONG_REVIEW_FIELDS = Object.freeze([
   ["description", "곡 설명"],
   ["privateMemo", "관리자 메모 (비공개)"],
   ["isPublic", "공개 여부"],
+  ["album", "연결된 앨범"],
 ]);
 export function songReviewRows(base, draft, latest) {
-  return SONG_REVIEW_FIELDS.filter(([key]) => draft[key] !== latest[key]).map(
-    ([key, label]) => {
-      const mineChanged = !base || draft[key] !== base[key];
-      const serverChanged = !base || latest[key] !== base[key];
-      return {
-        key,
-        label,
-        mine: draft[key],
-        latest: latest[key],
-        conflict: mineChanged && serverChanged,
-        selection:
-          mineChanged && serverChanged ? "" : mineChanged ? "mine" : "latest",
-      };
-    },
-  );
+  return SONG_REVIEW_FIELDS.filter(
+    ([key]) =>
+      JSON.stringify(draft[key] ?? null) !==
+      JSON.stringify(latest[key] ?? null),
+  ).map(([key, label]) => {
+    const mineChanged =
+      !base ||
+      JSON.stringify(draft[key] ?? null) !== JSON.stringify(base[key] ?? null);
+    const serverChanged =
+      !base ||
+      JSON.stringify(latest[key] ?? null) !== JSON.stringify(base[key] ?? null);
+    return {
+      key,
+      label,
+      mine: draft[key],
+      latest: latest[key],
+      conflict: mineChanged && serverChanged,
+      selection:
+        mineChanged && serverChanged ? "" : mineChanged ? "mine" : "latest",
+    };
+  });
 }
 export function mergeSongReview(draft, latest, rows) {
   const result = { ...draft, sourceRevision: latest.revision };
@@ -38,6 +45,9 @@ export function mergeSongReview(draft, latest, rows) {
   return result;
 }
 export function songReviewValue(value) {
+  if (value && typeof value === "object")
+    return value.title + " · " + value.artist + " / " + value.album_title;
+  if (value == null) return "(연결 없음)";
   if (typeof value === "boolean") return value ? "공개" : "비공개";
   return value === "" ? "(비어 있음)" : String(value);
 }
