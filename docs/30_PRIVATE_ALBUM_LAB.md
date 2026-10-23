@@ -42,3 +42,9 @@ admin 로그인 후 상단의 작은 플라스크 아이콘으로 /admin/album-l
 - tests/api.test.js
 - tests/e2e/album-lab.spec.js
 - wrangler.jsonc
+
+## 운영 배포 확인
+
+코드 00be34bd9028731475c7986e8b85b30cc8711140, Worker 7a5f68d1-8e01-4446-8772-a1618a7f566e로 [개인 실험실](https://zio-home.com/admin/album-lab)을 배포했습니다. [GitHub 전체 검증](https://github.com/gamsung0388/zio_page/actions/runs/39981082316)이 성공했습니다. 배포 전 백업 verified-20261024004109-3e975dc4는 13개 테이블의 별도 복원과 무결성을 통과했습니다. 새 스키마나 migration은 없습니다. 운영 파일 92개가 빌드와 일치하고 공개 노래 10곡·기본 테마를 보존했습니다. 익명 실험실 문서는 302 로그인 이동/no-store/noindex, 실험실 API는 401이며 일반 노래 문서의 connect-src를 확장하지 않았음을 확인했습니다.
+
+공개/관리 화면 45개에서 앱 오류·Vue 경고·앱 CSP 위반이 없었습니다. 관리자 화면의 운영 캡처는 GET 응답을 대체하는 읽기 전용 확인이며 운영 admin 비밀번호를 입력하거나 운영 노래를 테스트용으로 변경하지 않았습니다. 실제 계정의 실험실 검색은 소유자가 로그인해 확인합니다. 원본 SQL 사용자 변경과 ZIP은 보존하고 커밋에서 제외했습니다.
