@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onBeforeUnmount, watch } from "vue";
+import { ref, onBeforeUnmount, watch, nextTick } from "vue";
 import { api } from "../services/api.js";
 import Modal from "./Modal.vue";
 import CoverImage from "./CoverImage.vue";
@@ -60,6 +60,11 @@ async function search() {
   } finally {
     if (current === sequence) busy.value = false;
   }
+}
+async function searchUS() {
+  country.value = "US";
+  await nextTick();
+  await search();
 }
 function choose(album) {
   emit("update:modelValue", album);
@@ -140,6 +145,15 @@ onBeforeUnmount(cancel);
       <p v-else-if="searched && !items.length" role="status">
         검색 결과가 없어요. 국가나 곡명·가수를 바꿔 다시 찾아보세요.
       </p>
+      <button
+        v-if="searched && !items.length && country !== 'US' && !error"
+        type="button"
+        class="button secondary"
+        :disabled="busy"
+        @click="searchUS"
+      >
+        미국 음원에서 다시 찾기
+      </button>
       <div class="catalog-results" :aria-busy="busy">
         <article v-for="album in items" :key="album.track_id">
           <CoverImage

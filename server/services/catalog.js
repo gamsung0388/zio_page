@@ -62,7 +62,7 @@ export async function searchCatalog(db, input, fetcher = fetch) {
     const response = await fetcher(url.href, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(8000),
-      redirect: "error",
+      redirect: "manual",
     });
     if (!response.ok) throw Error();
     const text = await response.text();

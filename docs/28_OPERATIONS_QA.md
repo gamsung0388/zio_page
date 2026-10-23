@@ -4,7 +4,7 @@
 
 ## 로컬 검증
 
-- 단위/Miniflare·D1 API 129개, 전체 브라우저 회귀 89개, 참고 UI 6개 통과. 고유 테스트 총 224개입니다.
+- 단위/Miniflare·D1 API 132개, 전체 브라우저 회귀 89개, 참고 UI 6개 통과. 고유 테스트 총 227개입니다.
 - 최종 모바일 버튼 스타일 보완 후 1920×1080, 1440×900, 768×1024, 390×844, 360×800의 공개 노래 검색·홈페이지 관리·휴지통·노래 등록·관리자 목록을 재확인했습니다.
 - Vite 운영 빌드 성공. 런타임 의존성 추가는 없습니다.
 - 앨범 연결/해제, 한국어 곡 정보 유지, 외부 장애·분당 제한·캐시, 출처 URL 허용 목록, 비공개 메모 보호를 확인했습니다. CI의 앨범 검색 응답은 외부 장애에 흔들리지 않게 테스트 응답을 사용합니다.
@@ -19,6 +19,14 @@
 - 원본 사용자 변경 database/migrations/0001_initial.sql과 사용자 ZIP은 보존하고 커밋 대상에서 제외합니다. 원본 SQL의 SHA-256은 작업 시작 시 기록한 값과 비교합니다.
 - 실행 migration 0009/0010만 새로 추가했습니다. 기존 노래/일정 행을 바꾸거나 삭제하는 migration은 없습니다.
 - 배포 전 공개 노래와 기본 테마를 .local/operations-review/public-before.json에 기록했습니다.
+
+## 운영 앨범 검색 오류 수정
+
+사용자가 운영 검색의 연결 오류를 제보했습니다. Workers는 redirect:error를 지원하지 않아 외부 요청을 보내기 전에 TypeError를 발생시켰습니다. 최초 Node 서비스 단위 검증과 브라우저의 검색 응답 대체만으로는 이 차이를 잡지 못했습니다. redirect:manual로 수정하고 응답 상태를 검사합니다. Miniflare의 실제 workerd 전역 fetch와 외부 응답 모의 연결을 사용하는 API 테스트를 추가해 요청 생성, 한국 검색의 빈 결과, 미국 검색의 후보 및 리다이렉트 거부를 검증합니다. 근거: https://developers.cloudflare.com/workers/runtime-apis/request/ .
+
+## 새 스키마 백업 검증 보완
+
+D1의 원본 내보내기는 테이블 생성 직후 그 테이블의 데이터를 넣습니다. 새 songs.updated_by가 뒤에 나오는 admin_users를 참조해 격리 복원에서 부모 테이블이 아직 없다는 오류를 발견했습니다. 운영 데이터에는 영향이 없었습니다. 백업 도구는 원본 SQL을 그대로 보존하고, 원본 SQL에서 문자열·주석을 보존하며 테이블 DDL만 먼저 격리 DB에 생성하고 나머지 원본 구문을 그대로 실행하도록 보완했습니다. 이력 트리거와 인덱스는 원본의 데이터 뒤에서 생성되어 복원 중 중복 이력을 만들지 않습니다. 세미콜론·줄바꿈·따옴표가 든 메모 보존과 실제 외래키·트리거를 SQLite에서 검증합니다.
 
 ## 배포 상태
 
@@ -37,6 +45,8 @@
 - migrations/0010_operation_recovery.sql
 - public/_headers
 - public/images/itunes-badge.svg
+- scripts/backup-schema.js
+- scripts/backup-verify.js
 - server/index.js
 - server/repositories/admin-users.js
 - server/repositories/appearance.js
@@ -97,6 +107,7 @@
 - src/views/SongDetailView.vue
 - src/views/SongFormView.vue
 - tests/api.test.js
+- tests/backup-schema.test.js
 - tests/e2e/list-guide.spec.js
 - tests/e2e/navigation.spec.js
 - tests/e2e/operations.spec.js

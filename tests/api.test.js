@@ -3,7 +3,7 @@ import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { build } from "esbuild";
-import { Miniflare } from "miniflare";
+import { Miniflare, createFetchMock } from "miniflare";
 import {
   hashPassword,
   randomToken,
@@ -11,7 +11,7 @@ import {
 } from "../server/utils/crypto.js";
 import { stringifyCSV, CSV_COLUMNS } from "../server/services/csv.js";
 
-let mf, db, password, originalAdmin;
+let mf, db, password, originalAdmin, upstreamMock;
 const origin = "http://localhost";
 const song = (overrides = {}) => ({
   title: "테스트용 노래",
@@ -91,7 +91,10 @@ before(async () => {
     platform: "browser",
     target: "es2022",
   });
+  upstreamMock = createFetchMock();
+  upstreamMock.disableNetConnect();
   mf = new Miniflare({
+    fetchMock: upstreamMock,
     modules: true,
     script: bundled.outputFiles[0].text,
     compatibilityDate: "2026-07-30",
@@ -3335,4 +3338,76 @@ test("album-inclusive backup is paged and authenticated and excludes trash and a
       ).status,
       400,
     );
+});
+
+test("catalogue makes a real workerd fetch with supported redirect options and distinguishes no matches from failures", async () => {
+  const auth = await login(),
+    a = linkedAlbum(),
+    pool = upstreamMock.get("https://itunes.apple.com");
+  pool
+    .intercept({
+      method: "GET",
+      path: (path) =>
+        path.startsWith("/search?") && path.includes("country=KR"),
+    })
+    .reply(
+      200,
+      { results: [] },
+      { headers: { "Content-Type": "application/json" } },
+    );
+  pool
+    .intercept({
+      method: "GET",
+      path: (path) =>
+        path.startsWith("/search?") && path.includes("country=US"),
+    })
+    .reply(
+      200,
+      {
+        results: [
+          {
+            wrapperType: "track",
+            kind: "song",
+            trackId: a.track_id,
+            trackName: a.title,
+            artistName: a.artist,
+            collectionName: a.album_title,
+            artworkUrl100: a.artwork_url,
+            trackViewUrl: a.source_url,
+          },
+        ],
+      },
+      { headers: { "Content-Type": "application/json" } },
+    );
+  const kr = await request(
+    "/api/admin/catalog/search",
+    "POST",
+    { q: "런타임 검색", country: "KR" },
+    auth,
+  );
+  assert.equal(kr.status, 200, await kr.clone().text());
+  assert.deepEqual((await kr.json()).items, []);
+  const us = await request(
+    "/api/admin/catalog/search",
+    "POST",
+    { q: "런타임 검색", country: "US" },
+    auth,
+  );
+  assert.equal(us.status, 200, await us.clone().text());
+  assert.deepEqual((await us.json()).items, [a]);
+  pool
+    .intercept({ method: "GET", path: /^\/search\?/ })
+    .reply(302, "", { headers: { Location: "https://untrusted.invalid/" } });
+  assert.equal(
+    (
+      await request(
+        "/api/admin/catalog/search",
+        "POST",
+        { q: "리다이렉트 거부", country: "US" },
+        auth,
+      )
+    ).status,
+    503,
+  );
+  upstreamMock.assertNoPendingInterceptors();
 });

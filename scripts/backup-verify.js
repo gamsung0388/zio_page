@@ -3,6 +3,7 @@ import { readFile, mkdir, writeFile, appendFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID, createHash } from "node:crypto";
+import { prepareBackupRestore } from "./backup-schema.js";
 import { readConfig } from "./deploy-config.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,6 +37,8 @@ const directory = join(
 );
 const state = join(directory, "restore-state"),
   sqlFile = join(directory, "database.sql"),
+  schemaFile = join(directory, "precreate-schema.sql"),
+  dataFile = join(directory, "restore-data.sql"),
   log = join(directory, "verification-private.log");
 if (
   !resolve(state)
@@ -126,8 +129,12 @@ await run("export", [
 const after = await snapshot(sourceArgs);
 const sqlBytes = await readFile(sqlFile);
 if (!sqlBytes.length) throw new Error("SQL 백업이 비어 있습니다.");
+const prepared = prepareBackupRestore(sqlBytes.toString("utf8"));
+await writeFile(schemaFile, prepared.schemaSql);
+await writeFile(dataFile, prepared.dataSql);
 // The restore target is a new, private local directory. Never restore into remote/dev state.
-await run("execute", [...restoreArgs, "--file", sqlFile, "--yes"]);
+await run("execute", [...restoreArgs, "--file", schemaFile, "--yes"]);
+await run("execute", [...restoreArgs, "--file", dataFile, "--yes"]);
 const restored = await snapshot(restoreArgs);
 const [integrity] = await query(restoreArgs, "PRAGMA quick_check");
 const [foreignKeys] = await query(restoreArgs, "PRAGMA foreign_key_check");
@@ -142,6 +149,8 @@ const report = {
   source: remote ? "remote" : "local",
   databaseName: db.database_name,
   sqlFile,
+  schemaFile,
+  dataFile,
   restoreState: state,
   backupBytes: sqlBytes.length,
   backupSha256: createHash("sha256").update(sqlBytes).digest("hex"),

@@ -65,7 +65,12 @@ test("album search selects a version without overwriting local fields and unlink
 }) => {
   const song = await seed(page);
   await page.route("**/api/admin/catalog/search", (route) =>
-    route.fulfill({ json: { items: [album], country: "US" } }),
+    route.fulfill({
+      json: {
+        items: route.request().postDataJSON().country === "KR" ? [] : [album],
+        country: route.request().postDataJSON().country,
+      },
+    }),
   );
   await page.route("https://*.mzstatic.com/**", async (route) =>
     route.fulfill({
@@ -77,7 +82,14 @@ test("album search selects a version without overwriting local fields and unlink
   await page.getByRole("button", { name: "앨범 찾기", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "앨범 찾기", exact: true });
   await dialog.getByLabel("앨범 검색어", { exact: true }).fill("심규선 소로");
+  await dialog
+    .getByRole("combobox", { name: "검색 국가", exact: true })
+    .selectOption("KR");
   await dialog.getByRole("button", { name: "검색", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("검색 결과가 없어요");
+  await dialog
+    .getByRole("button", { name: "미국 음원에서 다시 찾기", exact: true })
+    .click();
   await dialog
     .getByRole("button", { name: "Narrow road 앨범 연결", exact: true })
     .click();
