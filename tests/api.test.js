@@ -50,9 +50,9 @@ async function request(path, method = "GET", body, auth, extraHeaders = {}) {
     headers: response.headers,
   });
 }
-async function login() {
+async function login(username = "test-admin") {
   const response = await request("/api/admin/login", "POST", {
-    username: "test-admin",
+    username,
     password,
   });
   assert.equal(response.status, 200, await response.clone().text());
@@ -95,6 +95,15 @@ before(async () => {
   upstreamMock.disableNetConnect();
   mf = new Miniflare({
     fetchMock: upstreamMock,
+    serviceBindings: {
+      ASSETS: async () =>
+        new Response("<html><body>APP_SHELL</body></html>", {
+          headers: {
+            "Content-Type": "text/html",
+            "Content-Security-Policy": "connect-src 'self'",
+          },
+        }),
+    },
     modules: true,
     script: bundled.outputFiles[0].text,
     compatibilityDate: "2026-07-30",
@@ -3513,4 +3522,190 @@ test("cover validation rejects SVG, forged files, oversized input and unauthoriz
     (await db.prepare("SELECT COUNT(*) total FROM songs").first()).total,
     0,
   );
+});
+
+async function createLabOwner() {
+  const other = await login();
+  const result = await request(
+    "/api/admin/users",
+    "POST",
+    {
+      username: "admin",
+      display_name: "테스트 소유자",
+      password,
+      password_confirmation: password,
+    },
+    other,
+  );
+  assert.equal(result.status, 201);
+  return login("admin");
+}
+test("private lab page/API require the named owner and use uncached, non-indexable page responses", async () => {
+  const path = "/admin/album-lab",
+    endpoint = "/api/admin/album-lab";
+  const anonymous = await request(path);
+  assert.equal(anonymous.status, 302);
+  assert.equal(
+    new URL(anonymous.headers.get("Location")).pathname,
+    "/admin/login",
+  );
+  assert.equal(
+    new URL(anonymous.headers.get("Location")).searchParams.get("next"),
+    path,
+  );
+  assert.match(anonymous.headers.get("Cache-Control"), /no-store/);
+  assert.equal((await request(endpoint)).status, 401);
+  const other = await login();
+  assert.equal((await request(path, "GET", undefined, other)).status, 404);
+  assert.equal((await request(endpoint, "GET", undefined, other)).status, 404);
+  const owner = await createLabOwner(),
+    page = await request(path, "GET", undefined, owner);
+  assert.equal(page.status, 200, await page.clone().text());
+  assert.match(await page.text(), /APP_SHELL/);
+  assert.match(
+    page.headers.get("Content-Security-Policy"),
+    /connect-src 'self' https:\/\/itunes.apple.com/,
+  );
+  assert.match(
+    page.headers.get("Content-Security-Policy"),
+    /script-src 'self'/,
+  );
+  assert.match(page.headers.get("X-Robots-Tag"), /noindex/);
+  assert.match(page.headers.get("Vary"), /Cookie/);
+  assert.match(page.headers.get("Cache-Control"), /no-store/);
+  assert.equal(
+    (await request("/", "GET", undefined, owner)).headers.get(
+      "Content-Security-Policy",
+    ),
+    "connect-src 'self'",
+  );
+  assert.equal(
+    (await request(path + "/extra", "GET", undefined, owner)).status,
+    404,
+  );
+  assert.equal((await request(endpoint, "GET", undefined, owner)).status, 200);
+  await db
+    .prepare(
+      "UPDATE admin_users SET must_change_password=1 WHERE username='admin'",
+    )
+    .run();
+  assert.equal((await request(endpoint, "GET", undefined, owner)).status, 403);
+  const forced = await request(path, "GET", undefined, owner);
+  assert.equal(
+    new URL(forced.headers.get("Location")).pathname,
+    "/admin/password",
+  );
+});
+test("private lab search retains CSRF/origin checks, validates queries and shares a bounded external allowance", async () => {
+  const owner = await createLabOwner(),
+    other = await login(),
+    path = "/api/admin/album-lab/authorize",
+    body = { q: "검은행복", country: "US" };
+  assert.equal((await request(path, "POST", body)).status, 401);
+  assert.equal(
+    (await request(path, "POST", body, { ...owner, csrfToken: "" })).status,
+    403,
+  );
+  assert.equal(
+    (await request(path, "POST", body, owner, { Origin: "https://evil.test" }))
+      .status,
+    403,
+  );
+  assert.equal((await request(path, "POST", body, other)).status, 404);
+  for (const bad of [
+    { ...body, country: "XX" },
+    { ...body, q: "" },
+    { ...body, url: "https://evil.test" },
+  ])
+    assert.equal((await request(path, "POST", bad, owner)).status, 422);
+  for (let index = 0; index < 10; index++)
+    assert.equal((await request(path, "POST", body, owner)).status, 200);
+  const limit = await request(path, "POST", body, owner);
+  assert.equal(limit.status, 429);
+  assert.equal(limit.headers.get("Retry-After"), "60");
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM songs").first()).total,
+    0,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM catalog_cache").first())
+      .total,
+    0,
+  );
+});
+test("private lab workerd probes report real upstream status without caching or changing song data", async () => {
+  const owner = await createLabOwner(),
+    songRow = await create(owner),
+    before = await db
+      .prepare("SELECT COUNT(*) total FROM operation_history")
+      .first(),
+    path = "/api/admin/album-lab/search",
+    pool = upstreamMock.get("https://itunes.apple.com"),
+    a = linkedAlbum();
+  pool
+    .intercept({ method: "GET", path: /^\/search\?/ })
+    .reply(429, "rate limited");
+  const limited = await request(
+    path,
+    "POST",
+    { q: "검은행복", country: "US" },
+    owner,
+  );
+  assert.equal(limited.status, 200);
+  const failed = await limited.json();
+  assert.equal(failed.ok, false);
+  assert.equal(failed.upstream_status, 429);
+  assert.deepEqual(failed.items, []);
+  pool.intercept({ method: "GET", path: /^\/search\?/ }).reply(
+    200,
+    {
+      results: [
+        {
+          wrapperType: "track",
+          kind: "song",
+          trackId: a.track_id,
+          trackName: a.title,
+          artistName: a.artist,
+          collectionName: a.album_title,
+          artworkUrl100: a.artwork_url,
+          trackViewUrl: a.source_url,
+        },
+      ],
+    },
+    { headers: { "Content-Type": "application/json" } },
+  );
+  const success = await (
+    await request(path, "POST", { q: "검은행복", country: "US" }, owner)
+  ).json();
+  assert.equal(success.ok, true);
+  assert.equal(success.upstream_status, 200);
+  assert.deepEqual(success.items, [a]);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM catalog_cache").first())
+      .total,
+    0,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM operation_history").first())
+      .total,
+    before.total,
+  );
+  assert.deepEqual(
+    await (
+      await request("/api/admin/songs/" + songRow.id, "GET", undefined, owner)
+    ).json(),
+    songRow,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/admin/catalog/search",
+        "POST",
+        { q: "검은행복", country: "US" },
+        owner,
+      )
+    ).status,
+    503,
+  );
+  upstreamMock.assertNoPendingInterceptors();
 });

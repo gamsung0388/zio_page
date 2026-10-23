@@ -1,8 +1,14 @@
+import { ALBUM_LAB_PATH, isAlbumLabOwner } from "../../shared/album-lab.js";
 import { createRouter, createWebHistory } from "vue-router";
 import { checkSession, session } from "../services/api.js";
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    {
+      path: ALBUM_LAB_PATH,
+      component: () => import("../pages/AlbumLab.vue"),
+      meta: { title: "앨범 연결 실험실", admin: true, albumLab: true },
+    },
     {
       path: "/",
       component: () => import("../pages/Home.vue"),
@@ -124,11 +130,21 @@ const router = createRouter({
     return saved || (to.path === from.path ? false : { top: 0 });
   },
 });
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
+  // A new document applies/removes the lab-only external-connect policy.
+  if (
+    (to.meta.albumLab || from.meta.albumLab) &&
+    from.matched.length &&
+    to.path !== from.path
+  ) {
+    window.location.assign(to.fullPath);
+    return false;
+  }
   if (to.meta.admin) {
     try {
       if (!(await checkSession()))
         return { path: "/admin/login", query: { next: to.fullPath } };
+      if (to.meta.albumLab && !isAlbumLabOwner(session.user)) return "/admin";
       if (session.user?.must_change_password && to.path !== "/admin/password")
         return { path: "/admin/password", query: { next: to.fullPath } };
     } catch {

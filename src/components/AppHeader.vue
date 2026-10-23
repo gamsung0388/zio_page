@@ -1,4 +1,5 @@
 <script setup>
+import { ALBUM_LAB_PATH, isAlbumLabOwner } from "../../shared/album-lab.js";
 import ThemePicker from "./ThemePicker.vue";
 import { RouterLink } from "vue-router";
 defineProps({
@@ -25,6 +26,22 @@ const emit = defineEmits(["menu", "navigate", "logout"]);
       <span class="topbar-dot"></span>{{ title }}
     </div>
     <div class="topbar-right">
+      <a
+        v-if="!preview && isAlbumLabOwner(user)"
+        :href="ALBUM_LAB_PATH"
+        class="lab-icon"
+        aria-label="앨범 연결 실험실"
+        title="앨범 연결 실험실"
+        ><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M9 3h6M10 3v6l-6 10a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L14 9V3M7 15h10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          /></svg
+      ></a>
       <ThemePicker v-if="!preview" />
       <span v-if="preview" class="demo-label">UI PREVIEW</span
       ><template v-else
@@ -51,3 +68,24 @@ const emit = defineEmits(["menu", "navigate", "logout"]);
     </div>
   </header>
 </template>
+
+<style scoped>
+.lab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 36px;
+  color: var(--muted, #647a6c);
+  border-radius: 8px;
+  opacity: 0.55;
+}
+.lab-icon:hover,
+.lab-icon:focus-visible {
+  opacity: 1;
+  background: var(--canvas, #f7f8f4);
+  outline: 2px solid var(--accent, #8fc36a);
+  outline-offset: 2px;
+}
+</style>

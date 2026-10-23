@@ -1,3 +1,4 @@
+import { albumLabPage } from "./routes/album-lab.js";
 import { publicRoutes } from "./routes/public.js";
 import { adminRoutes } from "./routes/admin.js";
 import { ApiError, json } from "./utils/http.js";
@@ -5,9 +6,11 @@ import { ApiError, json } from "./utils/http.js";
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
-    if (path !== "/api" && !path.startsWith("/api/"))
-      return env.ASSETS.fetch(request);
     try {
+      const labPage = await albumLabPage(request, env, path);
+      if (labPage) return labPage;
+      if (path !== "/api" && !path.startsWith("/api/"))
+        return env.ASSETS.fetch(request);
       const response =
         (await publicRoutes(request, env, path)) ||
         (await adminRoutes(request, env, path));

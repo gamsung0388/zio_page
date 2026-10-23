@@ -1,3 +1,4 @@
+import { albumLabRoutes } from "./album-lab.js";
 import { profileRoutes } from "./site-profile.js";
 import { recoveryRoutes } from "./recovery.js";
 import {
@@ -36,6 +37,11 @@ export async function adminRoutes(request, env, path) {
     });
   }
   const auth = await requireAdmin(request, env);
+  if (
+    path === "/api/admin/album-lab" ||
+    path.startsWith("/api/admin/album-lab/")
+  )
+    return albumLabRoutes(request, env, path, auth);
   if (path === "/api/admin/site") return profileRoutes(request, env);
   if (path.startsWith("/api/admin/recovery/"))
     return recoveryRoutes(request, env, path, auth);
