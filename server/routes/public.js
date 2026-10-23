@@ -1,3 +1,4 @@
+import { songImageResponse } from "../services/song-images.js";
 import { getProfile } from "../repositories/site-profile.js";
 import { PUBLIC_COLUMNS, serialize } from "../repositories/songs.js";
 import { getAppearance } from "../repositories/appearance.js";
@@ -50,6 +51,8 @@ export async function publicRoutes(request, env, path) {
     return json(
       await listSongs(env.DB, parseFilters(new URL(request.url).searchParams)),
     );
+  const imageMatch = path.match(/^\/api\/songs\/([1-9]\d*)\/cover$/);
+  if (imageMatch) return songImageResponse(env.DB, imageMatch[1]);
   const match = path.match(/^\/api\/songs\/([^/]+)$/);
   if (match) {
     const song = await getSong(env.DB, positiveId(match[1]));

@@ -3,8 +3,9 @@ import {
   SONG_TEXT_FIELDS,
   PRACTICE_OPTIONS,
 } from "./song-rules.js";
+import { validateCoverImage } from "./song-image.js";
 import { validateAlbum } from "./album.js";
-export const SONG_BACKUP_MAX_BYTES = 12 * 1024 * 1024;
+export const SONG_BACKUP_MAX_BYTES = 64 * 1024 * 1024;
 export function readSongBackup(value) {
   if (
     !value ||
@@ -22,7 +23,9 @@ export function readSongBackup(value) {
   return value.songs.map((song) => {
     if (
       !song ||
-      Object.keys(song).some((k) => ![...SONG_FIELDS, "album"].includes(k)) ||
+      Object.keys(song).some(
+        (k) => ![...SONG_FIELDS, "album", "cover_image"].includes(k),
+      ) ||
       SONG_FIELDS.some((k) => !Object.hasOwn(song, k))
     )
       throw Error("백업의 노래 항목이 올바르지 않아요.");
@@ -44,6 +47,12 @@ export function readSongBackup(value) {
       !PRACTICE_OPTIONS.some((row) => row.value === song.practice_status)
     )
       throw Error("백업의 숙련도·풍·연습 상태를 확인해주세요.");
-    return { ...song, album: validateAlbum(song.album ?? null) };
+    return {
+      ...song,
+      album: validateAlbum(song.album ?? null),
+      ...(Object.hasOwn(song, "cover_image")
+        ? { cover_image: validateCoverImage(song.cover_image) }
+        : {}),
+    };
   });
 }

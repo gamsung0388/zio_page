@@ -60,66 +60,81 @@ test.afterEach(async ({ page }) => {
       },
     });
 });
-test("album search selects a version without overwriting local fields and unlinking returns the default cover", async ({
+test("uploaded photos preview and save while album search stays paused and old links remain editable", async ({
   page,
 }) => {
-  const song = await seed(page);
-  await page.route("**/api/admin/catalog/search", (route) =>
-    route.fulfill({
-      json: {
-        items: route.request().postDataJSON().country === "KR" ? [] : [album],
-        country: route.request().postDataJSON().country,
-      },
-    }),
-  );
-  await page.route("https://*.mzstatic.com/**", async (route) =>
-    route.fulfill({
-      contentType: "image/svg+xml",
-      body: await readFile("public/images/covers/night.svg"),
-    }),
-  );
+  const song = await seed(page, { album });
+  let lookups = 0;
+  await page.route("**/api/admin/catalog/search", (route) => {
+    lookups++;
+    return route.abort();
+  });
   await page.goto("/admin/songs/" + song.id + "/edit");
-  await page.getByRole("button", { name: "앨범 찾기", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "앨범 찾기", exact: true });
-  await dialog.getByLabel("앨범 검색어", { exact: true }).fill("심규선 소로");
-  await dialog
-    .getByRole("combobox", { name: "검색 국가", exact: true })
-    .selectOption("KR");
-  await dialog.getByRole("button", { name: "검색", exact: true }).click();
-  await expect(dialog.getByRole("status")).toContainText("검색 결과가 없어요");
-  await dialog
-    .getByRole("button", { name: "미국 음원에서 다시 찾기", exact: true })
-    .click();
-  await dialog
-    .getByRole("button", { name: "Narrow road 앨범 연결", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
-  await expect(page.getByLabel("곡명", { exact: true })).toHaveValue(prefix);
-  await expect(page.getByLabel("지오 메모", { exact: true })).toHaveValue(
-    "PRIVATE_OPERATION_MEMO",
+  await expect(page.getByRole("region", { name: "앨범 연결" })).toContainText(
+    "준비 중",
   );
+  await expect(
+    page.getByRole("button", { name: "앨범 찾기", exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("사진 선택", { exact: true }).setInputFiles({
+    name: "cover.png",
+    mimeType: "image/png",
+    buffer: await page.screenshot(),
+  });
+  await expect(page.getByAltText("선택한 앨범 사진")).toHaveAttribute(
+    "src",
+    /^data:image\/webp;base64,/,
+  );
+  await expect(page.getByAltText("등록 이미지 미리보기")).toHaveAttribute(
+    "src",
+    /^data:image\/webp;base64,/,
+  );
+  expect(
+    (await (await page.request.get("/api/admin/songs/" + song.id)).json())
+      .cover_image,
+  ).toBeNull();
   await page.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs$/);
-  const saved = await (await page.request.get("/api/songs/" + song.id)).json();
+  const saved = await (
+    await page.request.get("/api/admin/songs/" + song.id)
+  ).json();
   expect(saved.album).toEqual(album);
-  expect(saved.memo).toBeUndefined();
+  expect(saved.memo).toBe("PRIVATE_OPERATION_MEMO");
+  expect(saved.cover_image).toMatch(/^data:image\/webp;base64,/);
   await page.goto("/songs/" + song.id);
-  await expect(
-    page.locator(".detail-title-area .album-source"),
-  ).toHaveAttribute("href", album.source_url);
-  await expect(page.locator(".detail-title-area")).not.toContainText(
-    "PRIVATE_OPERATION_MEMO",
+  await expect(page.locator("img.detail-cover")).toHaveAttribute(
+    "src",
+    /\/api\/songs\/\d+\/cover\?v=/,
   );
+  await expect
+    .poll(() =>
+      page.locator("img.detail-cover").evaluate((image) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await expect(
+    page.getByRole("link", { name: /Narrow road 공식 음원 보기/ }).first(),
+  ).toHaveAttribute("href", album.source_url);
+  const publicPhoto = await page.request.get(
+    "/api/songs/" + song.id + "/cover",
+  );
+  expect(publicPhoto.status()).toBe(200);
+  expect(publicPhoto.headers()["content-type"]).toBe("image/webp");
   await page.goto("/admin/songs/" + song.id + "/edit");
+  await page.getByRole("button", { name: "사진 삭제", exact: true }).click();
+  await expect(page.getByAltText("선택한 앨범 사진")).toHaveCount(0);
   await page
     .getByRole("button", { name: "앨범 연결 해제", exact: true })
     .click();
   await page.getByRole("button", { name: "수정하기", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/songs$/);
-  expect(
-    (await (await page.request.get("/api/songs/" + song.id)).json()).album,
-  ).toBeUndefined();
+  const removed = await (
+    await page.request.get("/api/admin/songs/" + song.id)
+  ).json();
+  expect(removed.cover_image).toBeNull();
+  expect(removed.album).toBeUndefined();
+  expect(lookups).toBe(0);
 });
+
 test("song trash offers cancel, private restore and confirmed permanent deletion with a readable history", async ({
   page,
 }) => {
@@ -286,7 +301,8 @@ test("homepage information and featured songs are editable and stale settings do
 test("album-inclusive JSON backup stages one selected song privately without writing before confirmation", async ({
   page,
 }) => {
-  const song = await seed(page, { album });
+  const { coverImage } = await import("../fixtures/song-image.js");
+  const song = await seed(page, { album, cover_image: coverImage });
   await page.goto("/admin/songs?q=" + encodeURIComponent(prefix));
   const download = page.waitForEvent("download");
   await page
@@ -296,6 +312,7 @@ test("album-inclusive JSON backup stages one selected song privately without wri
     json = JSON.parse(await readFile(file, "utf8"));
   const selected = json.songs.find((row) => row.title === song.title);
   expect(selected.album).toEqual(album);
+  expect(selected.cover_image).toEqual(coverImage);
   await page
     .getByRole("button", { name: "JSON 백업 가져오기", exact: true })
     .click();
@@ -320,6 +337,10 @@ test("album-inclusive JSON backup stages one selected song privately without wri
     "PRIVATE_OPERATION_MEMO",
   );
   await expect(page.locator(".album-selected")).toContainText(album.title);
+  await expect(page.getByAltText("선택한 앨범 사진")).toHaveAttribute(
+    "src",
+    coverImage,
+  );
   expect(
     (
       await (
@@ -431,4 +452,48 @@ test("mobile search comes before collapsed filters and all operation pages fit f
     }
   }
   expect(errors).toEqual([]);
+});
+
+test("photo input fits five screens and invalid files preserve the saved photo", async ({
+  page,
+}) => {
+  const { coverImage } = await import("../fixtures/song-image.js");
+  const song = await seed(page, { cover_image: coverImage });
+  await page.goto("/admin/songs/" + song.id + "/edit");
+  for (const [width, height] of [
+    [1920, 1080],
+    [1440, 900],
+    [768, 1024],
+    [390, 844],
+    [360, 800],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByAltText("선택한 앨범 사진")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path:
+        ".local/operations-review/screenshots/" + width + "-cover-upload.png",
+      fullPage: true,
+    });
+  }
+  await page
+    .getByLabel("사진 변경", { exact: true })
+    .setInputFiles({
+      name: "unsafe.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+    });
+  await expect(page.getByRole("alert")).toContainText("JPG, PNG, WEBP");
+  await expect(page.getByAltText("선택한 앨범 사진")).toHaveAttribute(
+    "src",
+    coverImage,
+  );
+  expect(
+    (await (await page.request.get("/api/admin/songs/" + song.id)).json())
+      .cover_image,
+  ).toBe(coverImage);
 });

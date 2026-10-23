@@ -11,6 +11,7 @@ export const SONG_REVIEW_FIELDS = Object.freeze([
   ["privateMemo", "관리자 메모 (비공개)"],
   ["isPublic", "공개 여부"],
   ["album", "연결된 앨범"],
+  ["coverImage", "앨범 사진"],
 ]);
 export function songReviewRows(base, draft, latest) {
   return SONG_REVIEW_FIELDS.filter(
@@ -45,6 +46,8 @@ export function mergeSongReview(draft, latest, rows) {
   return result;
 }
 export function songReviewValue(value) {
+  if (typeof value === "string" && value.startsWith("data:image/"))
+    return "직접 등록한 앨범 사진";
   if (value && typeof value === "object")
     return value.title + " · " + value.artist + " / " + value.album_title;
   if (value == null) return "(연결 없음)";

@@ -21,6 +21,7 @@ export async function backupSongs() {
         Object.fromEntries([
           ...SONG_FIELDS.map((field) => [field, song[field]]),
           ["album", song.album ?? null],
+          ["cover_image", song.cover_image ?? null],
         ]),
       );
     if (songs.length > 10000)
@@ -46,6 +47,6 @@ export async function backupSongs() {
     { type: "application/json" },
   );
   if (blob.size > SONG_BACKUP_MAX_BYTES)
-    throw Error("12MB를 넘는 백업은 운영 SQL 백업을 이용해주세요.");
+    throw Error("64MB를 넘는 백업은 운영 SQL 백업을 이용해주세요.");
   return blob;
 }

@@ -43,7 +43,13 @@ function apply() {
             :aria-label="row.label + ' 저장된 내용 사용'"
           /><span
             ><b>저장된 내용</b
-            ><span>{{ songReviewValue(row.latest) }}</span></span
+            ><img
+              v-if="row.key === 'coverImage' && row.latest"
+              :src="row.latest"
+              alt="저장된 앨범 사진"
+              width="80"
+              height="80"
+            /><span>{{ songReviewValue(row.latest) }}</span></span
           ></label
         >
         <label
@@ -54,7 +60,14 @@ function apply() {
             value="mine"
             :aria-label="row.label + ' 내 입력 사용'"
           /><span
-            ><b>내 입력</b><span>{{ songReviewValue(row.mine) }}</span></span
+            ><b>내 입력</b
+            ><img
+              v-if="row.key === 'coverImage' && row.mine"
+              :src="row.mine"
+              alt="내가 선택한 앨범 사진"
+              width="80"
+              height="80"
+            /><span>{{ songReviewValue(row.mine) }}</span></span
           ></label
         >
       </fieldset>

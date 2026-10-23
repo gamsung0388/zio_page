@@ -1,4 +1,5 @@
 <script setup>
+import SongCoverUpload from "../components/SongCoverUpload.vue";
 import AlbumPicker from "../components/AlbumPicker.vue";
 import AlbumSource from "../components/AlbumSource.vue";
 import { songCover } from "../services/song-cover.js";
@@ -28,6 +29,7 @@ const props = defineProps({
 const emit = defineEmits(["save", "cancel"]);
 const isEdit = computed(() => Boolean(props.song?.id));
 const busy = ref(false);
+const imageBusy = ref(false);
 const error = ref("");
 const saveErrorElement = ref(null);
 const baseline = ref("");
@@ -50,6 +52,7 @@ const form = reactive({
   isPublic: true,
   links: [],
   album: null,
+  coverImage: null,
 });
 
 function reset() {
@@ -68,6 +71,7 @@ function reset() {
     language: song?.language ?? "",
     isPublic: song?.isPublic ?? true,
     album: song?.album ?? null,
+    coverImage: song?.coverImage ?? null,
     links: song?.links?.map((link) => ({ ...link })) ?? [],
   });
   error.value = "";
@@ -96,7 +100,9 @@ const drafts = useEditorDraft({
     )
       return false;
     for (const key of Object.keys(form))
-      form[key] = key === "album" ? (value.album ?? null) : value[key];
+      form[key] = ["album", "coverImage"].includes(key)
+        ? (value[key] ?? null)
+        : value[key];
     sourceRevision.value =
       value.sourceRevision ??
       (value.sourceUpdatedAt === (props.song?.updatedAt || null)
@@ -121,7 +127,7 @@ function applyReview(value) {
 }
 defineExpose({
   dirty,
-  busy,
+  busy: computed(() => busy.value || imageBusy.value),
   markSaved: saved,
   discardDraft: drafts.clear,
   currentDraft,
@@ -136,6 +142,7 @@ const previewSong = computed(() => ({
   practiceStatus: form.practiceStatus,
   balloonCount: Number(form.balloonCount),
   cover:
+    form.coverImage ||
     form.album?.artwork_url ||
     (props.connected ? songCover({ genre: form.genre }) : songCover(form)),
 }));
@@ -169,7 +176,7 @@ function removeLink(index) {
 }
 
 async function submit() {
-  if (busy.value) return;
+  if (busy.value || imageBusy.value) return;
   error.value = "";
   const errors = validateDraft(form);
   if (errors.length) {
@@ -194,6 +201,7 @@ async function submit() {
     practiceStatus: form.practiceStatus,
     balloonCount: Number(form.balloonCount),
     cover:
+      form.coverImage ||
       form.album?.artwork_url ||
       (props.connected ? songCover({ genre: form.genre }) : songCover(form)),
     description: form.description.trim(),
@@ -201,7 +209,9 @@ async function submit() {
     language: form.language.trim(),
     isPublic: form.isPublic,
     links: cleanLinks,
-    ...(props.connected ? { album: form.album } : {}),
+    ...(props.connected
+      ? { album: form.album, coverImage: form.coverImage }
+      : {}),
     ...(props.connected && isEdit.value
       ? { sourceRevision: sourceRevision.value }
       : {}),
@@ -428,6 +438,12 @@ async function submit() {
             {{ SONG_TEXT_FIELDS.memo.max }}</small
           >
         </div>
+        <SongCoverUpload
+          v-if="connected"
+          v-model="form.coverImage"
+          :disabled="busy"
+          @processing="imageBusy = $event"
+        />
         <AlbumPicker
           v-if="connected"
           v-model="form.album"
@@ -523,7 +539,11 @@ async function submit() {
             @click="emit('cancel')"
           >
             취소</button
-          ><button class="btn btn-primary" type="submit" :disabled="busy">
+          ><button
+            class="btn btn-primary"
+            type="submit"
+            :disabled="busy || imageBusy"
+          >
             {{ busy ? "저장 중…" : isEdit ? "수정하기" : "등록하기" }}
           </button>
         </div>

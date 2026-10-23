@@ -1,17 +1,39 @@
 import { SORTS, SONG_FIELDS } from "../services/song-validation.js";
 export const PUBLIC_COLUMNS =
-  "id, title, artist, description, genre, language, proficiency, practice_status, balloon_cost, is_public, created_at, updated_at, album";
-export function serialize(row) {
+  "id, title, artist, description, genre, language, proficiency, practice_status, balloon_cost, is_public, created_at, updated_at, album, CASE WHEN cover_image IS NOT NULL THEN 1 ELSE 0 END AS has_cover, revision AS cover_revision";
+export function serialize(row, options = {}) {
   if (!row) return null;
-  const { album, deleted_at, updated_by, ...rest } = row;
+  const {
+    album,
+    deleted_at,
+    updated_by,
+    cover_image,
+    has_cover,
+    cover_revision,
+    ...rest
+  } = row;
   const value = album ? JSON.parse(album) : null;
   return {
     ...rest,
     is_public: row.is_public === 1,
     ...(value ? { album: value } : {}),
+    ...(cover_image || has_cover
+      ? {
+          cover_url:
+            "/api/" +
+            (options.admin ? "admin/" : "") +
+            "songs/" +
+            row.id +
+            "/cover?v=" +
+            (row.revision ?? cover_revision),
+        }
+      : {}),
+    ...(options.includeImage ? { cover_image: cover_image ?? null } : {}),
   };
 }
-const columns = (admin) => PUBLIC_COLUMNS + (admin ? ", memo, revision" : "");
+const columns = (admin, includeImage = false) =>
+  PUBLIC_COLUMNS +
+  (admin ? ", memo, revision" + (includeImage ? ", cover_image" : "") : "");
 export async function listSongs(db, filters, admin = false) {
   const where = admin
     ? ["deleted_at IS NULL"]
@@ -59,7 +81,7 @@ export async function listSongs(db, filters, admin = false) {
     );
   const results = await db.batch(queries);
   const result = {
-    items: results[0].results.map(serialize),
+    items: results[0].results.map((row) => serialize(row, { admin })),
     pagination: {
       page: filters.page,
       page_size: filters.page_size,
@@ -81,14 +103,15 @@ export async function getSong(db, id, admin = false) {
   return serialize(
     await db
       .prepare(
-        `SELECT ${columns(admin)} FROM songs WHERE deleted_at IS NULL AND id=?${admin ? "" : " AND is_public=1"}`,
+        `SELECT ${columns(admin, admin)} FROM songs WHERE deleted_at IS NULL AND id=?${admin ? "" : " AND is_public=1"}`,
       )
       .bind(id)
       .first(),
+    { admin, includeImage: admin },
   );
 }
 export async function createSong(db, song, actor = null) {
-  const fields = [...SONG_FIELDS, "album", "updated_by"];
+  const fields = [...SONG_FIELDS, "album", "cover_image", "updated_by"];
   const row = await db
     .prepare(
       `INSERT INTO songs (${fields.join(",")}) VALUES (${fields.map(() => "?").join(",")}) RETURNING *`,
@@ -99,16 +122,18 @@ export async function createSong(db, song, actor = null) {
           ? actor
           : field === "album"
             ? JSON.stringify(song.album ?? null)
-            : field === "is_public"
-              ? Number(song[field])
-              : song[field],
+            : field === "cover_image"
+              ? (song.cover_image ?? null)
+              : field === "is_public"
+                ? Number(song[field])
+                : song[field],
       ),
     )
     .first();
-  return serialize(row);
+  return serialize(row, { admin: true, includeImage: true });
 }
 export async function updateSong(db, id, changes, revision, actor = null) {
-  const fields = [...SONG_FIELDS, "album"].filter((field) =>
+  const fields = [...SONG_FIELDS, "album", "cover_image"].filter((field) =>
     Object.hasOwn(changes, field),
   );
   const row = await db
@@ -128,7 +153,7 @@ export async function updateSong(db, id, changes, revision, actor = null) {
       revision,
     )
     .first();
-  return serialize(row);
+  return serialize(row, { admin: true, includeImage: true });
 }
 export async function deleteSong(db, id, revision, actor = null) {
   return db

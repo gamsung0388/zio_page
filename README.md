@@ -9,13 +9,13 @@
 ## 현재 메뉴와 화면
 
 - 공개: 홈, 노래책자·검색·필터·상세, 노래책자 사용 가이드.
-- 운영: 노래 관리(앨범 연결·복사·일괄 수정·휴지통·CSV/JSON 백업), 일정 달력·목록, 주간 이미지 메모·이미지 출력·사용 가이드.
+- 운영: 노래 관리(앨범 사진 등록·기존 연결 유지·복사·일괄 수정·휴지통·CSV/JSON 백업), 일정 달력·목록, 주간 이미지 메모·이미지 출력·사용 가이드.
 - 관리: 관리자 관리(계정 등록·사용 중지/재개·로그인 해제·비밀번호), 홈페이지 관리(소개·공식 링크·추천 곡·메뉴 구성·테마).
 - 화면 상단의 테마 버튼으로 방문자 개인 테마를 선택합니다. [테마 사용·관리 가이드](docs/appearance-guide.md)를 참고하세요.
 - PC 관리자 노래 목록은 목록/카드를 선택하고 모바일·태블릿은 카드를 사용합니다. 입력 항목의 ? 도움말과 저장 버튼 옆 공개 여부를 확인하세요. 지오 메모는 관리자 전용입니다.
 - 여러 날 일정은 달력에서 이어지는 막대로 표시합니다. 일정 삭제 버튼은 수정창 하단에 있습니다. 목록에서도 등록 날짜를 직접 선택합니다.
 
-새 운영 기능: 실제 앨범 검색·연결, 모바일 검색 우선 화면, 홈페이지 기본 정보, 휴지통·변경 기록, 곡 복사·일괄 수정, 관리자 사용 중지/재개. [운영 사용법·구조·배포 순서](docs/27_OPERATIONS_AND_ALBUMS.md) · [검증 결과](docs/28_OPERATIONS_QA.md).
+새 운영 기능: 앨범 사진 직접 등록(외부 검색·새 연결은 준비 중), 모바일 검색 우선 화면, 홈페이지 기본 정보, 휴지통·변경 기록, 곡 복사·일괄 수정, 관리자 사용 중지/재개. [운영 사용법·구조·배포 순서](docs/27_OPERATIONS_AND_ALBUMS.md) · [검증 결과](docs/28_OPERATIONS_QA.md).
 
 이전 안정화 작업: 목록 페이지 보정, CSV 응답 유실·동시 재시도 중복 방지, SQL 백업·별도 로컬 복구 검증, 공통 삭제 확인창·툴팁·입력 규칙·CSS 정리. [이번 변경·검증·배포](docs/26_SONG_STABILITY_AND_UI.md) · [과거 기록](docs/RELEASE_HISTORY.md).
 
@@ -87,7 +87,7 @@ docs/                        원본 설계 및 실행·운영·QA 문서
 - 쿠키는 HttpOnly/SameSite=Lax/7일 만료이며 운영에서 Secure입니다. `APP_ENV=development` 또는 `test` + loopback HTTP에서만 로컬용 Secure 예외를 허용합니다. 운영 설정은 production으로 고정합니다.
 - 모든 관리 변경에 정확한 동일 출처 Origin/Referer 검사와 세션에서 파생한 CSRF 토큰을 요구합니다. 로그인도 출처 검사를 수행합니다. 와일드카드 CORS를 사용하지 않습니다.
 - 로그인 제한은 D1의 원자적 카운터로 유지합니다. IP당 15분에 10회, ID당 20회 실패·진행 중 시도를 제한합니다. 성공 시 해당 요청의 예약만 차감해 정상 로그인은 누적하지 않으며 다른 실패 기록은 유지합니다. IP/ID는 해시로 저장하고 성공/실패 로그에 계정·암호·토큰을 남기지 않습니다. 성공한 로그인 때 만료 세션·제한을 제한된 수량만 정리합니다.
-- 사용자가 UI 패키지에 제공한 지오 캐릭터 이미지를 사용합니다. 기본 커버는 자체 일러스트이며 관리자가 Apple 음원을 검색·선택하면 실제 앨범 표지와 공식 음원 링크를 함께 표시합니다. 외부 검색은 관리자 요청에만 사용합니다.
+- 사용자가 UI 패키지에 제공한 지오 캐릭터 이미지를 사용합니다. 기본 커버는 자체 일러스트이며 직접 등록한 작은 앨범 사진을 우선 표시합니다. 외부 검색·새 연결은 준비 중이고 기존 Apple 연결과 공식 음원 링크는 유지합니다. 사진은 최대 512px·32KB WebP로 자동 변환하고 기존 D1에 보관합니다.
 
 ## CSV
 
@@ -131,7 +131,7 @@ title,artist,description,genre,language,proficiency,practice_status,balloon_cost
 
 ## 일정·메뉴 운영 안내
 
-[일정 달력과 이미지](docs/12_ADMIN_SCHEDULE.md), [시간·기간·개별 일정](docs/16_INDIVIDUAL_SCHEDULE_EVENTS.md), [주간 메모 삭제](docs/18_WEEKLY_MEMO_DELETE.md), [목록 날짜와 일정 가이드](docs/19_LIST_DATE_AND_GUIDE.md), [관리·메뉴 설정](docs/22_MANAGEMENT_AND_DESIGN.md), [기간 일정 연속 표시](docs/23_CALENDAR_CONTINUITY.md), [노래책자·등록 가이드](docs/25_SONG_GUIDES.md)를 참고하세요. 실행 migration은 0001~0008입니다.
+[일정 달력과 이미지](docs/12_ADMIN_SCHEDULE.md), [시간·기간·개별 일정](docs/16_INDIVIDUAL_SCHEDULE_EVENTS.md), [주간 메모 삭제](docs/18_WEEKLY_MEMO_DELETE.md), [목록 날짜와 일정 가이드](docs/19_LIST_DATE_AND_GUIDE.md), [관리·메뉴 설정](docs/22_MANAGEMENT_AND_DESIGN.md), [기간 일정 연속 표시](docs/23_CALENDAR_CONTINUITY.md), [노래책자·등록 가이드](docs/25_SONG_GUIDES.md)를 참고하세요. 실행 migration은 0001~0011입니다.
 
 ## 검증과 배포
 

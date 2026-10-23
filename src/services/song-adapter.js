@@ -1,3 +1,4 @@
+import { validateCoverImage } from "../../shared/song-image.js";
 import { songCover } from "./song-cover.js";
 // Pure mappings only. This module does not call APIs or persist data.
 import {
@@ -26,13 +27,17 @@ export function toSongView(song, { admin = false } = {}) {
     isPublic: Boolean(song.is_public),
     createdAt: song.created_at,
     updatedAt: song.updated_at,
-    cover: song.album?.artwork_url || songCover({ genre: song.genre }),
+    cover:
+      song.cover_url ||
+      song.album?.artwork_url ||
+      songCover({ genre: song.genre }),
     ...(song.album ? { album: song.album } : {}),
     links: [],
   };
   if (admin) {
     view.privateMemo = song.memo || "";
     view.revision = song.revision;
+    if (Object.hasOwn(song, "cover_image")) view.coverImage = song.cover_image;
   }
   return view;
 }
@@ -49,6 +54,8 @@ export function toSongInput(view, { admin = false } = {}) {
     is_public: view.isPublic !== false,
   };
   if (Object.hasOwn(view, "album")) input.album = view.album;
+  if (admin && Object.hasOwn(view, "coverImage"))
+    input.cover_image = view.coverImage;
   if (admin) input.memo = (view.privateMemo || "").trim();
   return input;
 }
@@ -79,5 +86,10 @@ export function validateDraft(form) {
     errors.push("풍 개수는 0 이상의 안전한 정수로 입력해주세요.");
   if (!statusToApi.has(form.practiceStatus))
     errors.push("연습 상태를 확인해주세요.");
+  try {
+    if (Object.hasOwn(form, "coverImage")) validateCoverImage(form.coverImage);
+  } catch (error) {
+    errors.push(error.message);
+  }
   return errors;
 }

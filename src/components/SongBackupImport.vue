@@ -21,7 +21,7 @@ async function read(event) {
   songs.value = [];
   try {
     if (file.size > SONG_BACKUP_MAX_BYTES)
-      throw Error("12MB 이하 JSON 백업을 선택해주세요.");
+      throw Error("64MB 이하 JSON 백업을 선택해주세요.");
     songs.value = readSongBackup(JSON.parse(await file.text()));
     index.value = 0;
     if (!songs.value.length) throw Error("백업에 등록된 노래가 없어요.");
@@ -42,8 +42,8 @@ function choose() {
 <template>
   <Modal title="백업에서 노래 가져오기" :busy="busy" @close="emit('close')"
     ><p class="modal-intro">
-      앨범을 포함한 JSON 백업에서 한 곡을 골라 새 등록 화면으로 가져와요. 확인
-      후 저장해야 등록되며 기존 곡을 덮어쓰지 않습니다.
+      앨범 사진·연결 정보를 포함한 JSON 백업에서 한 곡을 골라 새 등록 화면으로
+      가져와요. 확인 후 저장해야 등록되며 기존 곡을 덮어쓰지 않습니다.
     </p>
     <label class="field"
       >노래 JSON 백업 파일<input
@@ -61,7 +61,7 @@ function choose() {
       </select></label
     >
     <p v-if="songs.length" class="help-text">
-      관리자 메모와 앨범 연결을 유지하며 비공개 상태로 준비해요.
+      관리자 메모와 앨범 사진·연결을 유지하며 비공개 상태로 준비해요.
     </p>
     <div class="modal-actions">
       <button

@@ -113,6 +113,7 @@ before(async () => {
     "0008_song_import_jobs.sql",
     "0009_song_albums.sql",
     "0010_operation_recovery.sql",
+    "0011_song_cover_images.sql",
   ]) {
     const sql = await readFile(`migrations/${file}`, "utf8");
     for (const statement of sql
@@ -430,7 +431,7 @@ test("server validates malformed bodies, unknown fields and unsafe values", asyn
   );
   assert.equal(
     (
-      await request("/api/admin/songs", "POST", " ".repeat(66000), auth, {
+      await request("/api/admin/songs", "POST", " ".repeat(132000), auth, {
         "Content-Type": "application/json",
       })
     ).status,
@@ -2741,7 +2742,11 @@ test("album linkage preserves local fields and private notes, validates hosts, a
   );
 });
 test("catalogue searches are protected, cached, globally bounded, and external failures do not block song saving", async () => {
-  const { searchCatalog } = await import("../server/services/catalog.js");
+  const { searchCatalog: queryCatalog } =
+    await import("../server/services/catalog.js");
+  // Keep minute-boundary/rate-limit coverage deterministic.
+  const searchCatalog = (db, input, fetcher) =>
+    queryCatalog(db, input, fetcher, 1800000000000);
   const auth = await login();
   const path = "/api/admin/catalog/search",
     input = { q: "소로", country: "US" };
@@ -2779,7 +2784,7 @@ test("catalogue searches are protected, cached, globally bounded, and external f
     data,
   );
   assert.equal(calls, 1);
-  assert.equal((await request(path, "POST", input, auth)).status, 200);
+  assert.equal((await request(path, "POST", input, auth)).status, 503);
   for (let index = 0; index < 9; index++)
     await searchCatalog(db, { ...input, q: "새 검색 " + index }, fetcher);
   await assert.rejects(
@@ -2792,8 +2797,8 @@ test("catalogue searches are protected, cached, globally bounded, and external f
     { ...input, q: "또 다른 검색" },
     auth,
   );
-  assert.equal(limit.status, 429);
-  assert.equal(limit.headers.get("Retry-After"), "60");
+  assert.equal(limit.status, 503);
+  assert.equal((await limit.json()).error.code, "CATALOG_PAUSED");
   await db.prepare("DELETE FROM catalog_limits").run();
   await assert.rejects(
     () =>
@@ -3340,74 +3345,172 @@ test("album-inclusive backup is paged and authenticated and excludes trash and a
     );
 });
 
-test("catalogue makes a real workerd fetch with supported redirect options and distinguishes no matches from failures", async () => {
+test("paused catalogue rejects authenticated calls without external requests or cache writes", async () => {
+  const auth = await login();
+  for (const country of ["US", "KR"]) {
+    const response = await request(
+      "/api/admin/catalog/search",
+      "POST",
+      { q: "검은행복", country },
+      auth,
+    );
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, "CATALOG_PAUSED");
+  }
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM catalog_cache").first())
+      .total,
+    0,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM catalog_limits").first())
+      .total,
+    0,
+  );
+  upstreamMock.assertNoPendingInterceptors();
+});
+test("uploaded covers save atomically, stay out of lists, obey visibility, and survive backup/copy/restore", async () => {
+  const { coverImage } = await import("./fixtures/song-image.js");
   const auth = await login(),
-    a = linkedAlbum(),
-    pool = upstreamMock.get("https://itunes.apple.com");
-  pool
-    .intercept({
-      method: "GET",
-      path: (path) =>
-        path.startsWith("/search?") && path.includes("country=KR"),
-    })
-    .reply(
-      200,
-      { results: [] },
-      { headers: { "Content-Type": "application/json" } },
+    created = await create(
+      auth,
+      song({ cover_image: coverImage, album: linkedAlbum() }),
     );
-  pool
-    .intercept({
-      method: "GET",
-      path: (path) =>
-        path.startsWith("/search?") && path.includes("country=US"),
-    })
-    .reply(
-      200,
-      {
-        results: [
-          {
-            wrapperType: "track",
-            kind: "song",
-            trackId: a.track_id,
-            trackName: a.title,
-            artistName: a.artist,
-            collectionName: a.album_title,
-            artworkUrl100: a.artwork_url,
-            trackViewUrl: a.source_url,
-          },
-        ],
-      },
-      { headers: { "Content-Type": "application/json" } },
-    );
-  const kr = await request(
-    "/api/admin/catalog/search",
-    "POST",
-    { q: "런타임 검색", country: "KR" },
+  assert.equal(created.cover_image, coverImage);
+  const path = "/api/songs/" + created.id + "/cover",
+    adminPath = "/api/admin/songs/" + created.id + "/cover";
+  const publicSong = await (await request("/api/songs/" + created.id)).json();
+  assert.equal(publicSong.cover_url, path + "?v=1");
+  assert.equal(publicSong.cover_image, undefined);
+  assert.equal(publicSong.memo, undefined);
+  for (const url of ["/api/songs", "/api/admin/songs"]) {
+    const list = await (
+      await request(
+        url,
+        "GET",
+        undefined,
+        url.includes("/admin/") ? auth : undefined,
+      )
+    ).json();
+    assert.equal(list.items[0].cover_image, undefined);
+  }
+  const photo = await request(path);
+  assert.equal(photo.status, 200);
+  assert.equal(photo.headers.get("Content-Type"), "image/webp");
+  assert.equal(photo.headers.get("Cache-Control"), "no-store");
+  assert.equal(photo.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.deepEqual(
+    new Uint8Array(await photo.arrayBuffer()),
+    Uint8Array.from(atob(coverImage.split(",")[1]), (c) => c.charCodeAt(0)),
+  );
+  assert.equal((await request(adminPath)).status, 401);
+  const denied = await request(
+    "/api/admin/songs/" + created.id,
+    "PATCH",
+    { cover_image: null, expected_revision: 1 },
+    { ...auth, csrfToken: "" },
+  );
+  assert.equal(denied.status, 403);
+  const hidden = await request(
+    "/api/admin/songs/" + created.id,
+    "PATCH",
+    { is_public: false, expected_revision: 1 },
     auth,
   );
-  assert.equal(kr.status, 200, await kr.clone().text());
-  assert.deepEqual((await kr.json()).items, []);
-  const us = await request(
-    "/api/admin/catalog/search",
-    "POST",
-    { q: "런타임 검색", country: "US" },
+  assert.equal(hidden.status, 200);
+  assert.equal((await request(path)).status, 404);
+  assert.equal((await request(adminPath, "GET", undefined, auth)).status, 200);
+  const stale = await request(
+    "/api/admin/songs/" + created.id,
+    "PATCH",
+    { cover_image: null, expected_revision: 1 },
     auth,
   );
-  assert.equal(us.status, 200, await us.clone().text());
-  assert.deepEqual((await us.json()).items, [a]);
-  pool
-    .intercept({ method: "GET", path: /^\/search\?/ })
-    .reply(302, "", { headers: { Location: "https://untrusted.invalid/" } });
+  assert.equal(stale.status, 409);
+  const saved = await (
+    await request("/api/admin/songs/" + created.id, "GET", undefined, auth)
+  ).json();
+  assert.equal(saved.cover_image, coverImage);
+  const backup = await (
+    await request("/api/admin/songs/backup", "GET", undefined, auth)
+  ).json();
+  assert.equal(backup.items[0].cover_image, coverImage);
+  const copy = await create(
+    auth,
+    song({ cover_image: saved.cover_image, is_public: false }),
+  );
+  assert.equal(copy.cover_image, coverImage);
   assert.equal(
     (
       await request(
-        "/api/admin/catalog/search",
-        "POST",
-        { q: "리다이렉트 거부", country: "US" },
+        "/api/admin/songs/" + created.id,
+        "DELETE",
+        { expected_revision: 2 },
         auth,
       )
     ).status,
-    503,
+    200,
   );
-  upstreamMock.assertNoPendingInterceptors();
+  assert.equal((await request(adminPath, "GET", undefined, auth)).status, 404);
+  assert.equal(
+    (
+      await request(
+        "/api/admin/recovery/songs/" + created.id + "/restore",
+        "POST",
+        { expected_revision: 3 },
+        auth,
+      )
+    ).status,
+    200,
+  );
+  const restored = await (
+    await request("/api/admin/songs/" + created.id, "GET", undefined, auth)
+  ).json();
+  assert.equal(restored.cover_image, coverImage);
+  assert.equal(restored.is_public, false);
+  assert.equal((await request(path)).status, 404);
+  const removed = await request(
+    "/api/admin/songs/" + created.id,
+    "PATCH",
+    { cover_image: null, expected_revision: restored.revision },
+    auth,
+  );
+  assert.equal(removed.status, 200);
+  const result = await removed.json();
+  assert.equal(result.cover_image, null);
+  assert.equal(result.cover_url, undefined);
+  assert.deepEqual(result.album, linkedAlbum());
+  assert.equal((await request(adminPath, "GET", undefined, auth)).status, 404);
+});
+test("cover validation rejects SVG, forged files, oversized input and unauthorized writes", async () => {
+  const auth = await login();
+  for (const value of [
+    "data:image/svg+xml;base64,PHN2Zz4=",
+    "https://evil.test/a.webp",
+    "data:image/webp;base64,PHN2Zz4=",
+    false,
+    {},
+    "data:image/webp;base64," + "A".repeat(44000),
+  ]) {
+    assert.equal(
+      (
+        await request(
+          "/api/admin/songs",
+          "POST",
+          song({ cover_image: value }),
+          auth,
+        )
+      ).status,
+      422,
+    );
+  }
+  assert.equal(
+    (await request("/api/admin/songs", "POST", song({ cover_image: null })))
+      .status,
+    401,
+  );
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) total FROM songs").first()).total,
+    0,
+  );
 });

@@ -56,7 +56,7 @@ export async function readBody(request, maxBytes = 64 * 1024) {
   }
 }
 
-export async function readJson(request) {
+export async function readJson(request, maxBytes) {
   if (
     !request.headers
       .get("Content-Type")
@@ -66,7 +66,7 @@ export async function readJson(request) {
     throw new ApiError(415, "CONTENT_TYPE", "JSON 형식으로 요청해주세요.");
   }
   try {
-    const value = JSON.parse(await readBody(request));
+    const value = JSON.parse(await readBody(request, maxBytes));
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw new Error();
     return value;

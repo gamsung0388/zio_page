@@ -4,7 +4,7 @@ import {
   changeAdminStatus,
   revokeAdminSessions,
 } from "../services/admin-status.js";
-import { searchCatalog } from "../services/catalog.js";
+// Album search is paused; stored links remain compatible with song edits/backups.
 import { appearanceRoutes } from "./appearance.js";
 import { navigationRoutes } from "./navigation.js";
 import { songRoutes } from "./songs.js";
@@ -60,7 +60,11 @@ export async function adminRoutes(request, env, path) {
   }
 
   if (path === "/api/admin/catalog/search" && request.method === "POST")
-    return json(await searchCatalog(env.DB, await readJson(request)));
+    throw new ApiError(
+      503,
+      "CATALOG_PAUSED",
+      "앨범 검색·연결은 준비 중이에요. 앨범 사진을 직접 등록해주세요.",
+    );
   if (path === "/api/admin/appearance") return appearanceRoutes(request, env);
   if (path === "/api/admin/navigation")
     return navigationRoutes(request, env, path, auth);

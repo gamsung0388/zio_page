@@ -1,3 +1,4 @@
+import { validateCoverImage } from "../../shared/song-image.js";
 import { validateAlbum } from "../../shared/album.js";
 // Drafts may contain incomplete inputs; final submission still uses validateDraft/API validation.
 export function isSongDraft(value) {
@@ -8,6 +9,12 @@ export function isSongDraft(value) {
     } catch {
       return false;
     }
+  }
+  try {
+    if (Object.hasOwn(value, "coverImage"))
+      validateCoverImage(value.coverImage);
+  } catch {
+    return false;
   }
   const strings = {
     title: 200,
@@ -30,7 +37,10 @@ export function isSongDraft(value) {
   if (
     Object.keys(value).some(
       (key) =>
-        !allowed.includes(key) && key !== "sourceRevision" && key !== "album",
+        !allowed.includes(key) &&
+        key !== "sourceRevision" &&
+        key !== "album" &&
+        key !== "coverImage",
     ) ||
     (Object.hasOwn(value, "sourceRevision") &&
       (!Number.isSafeInteger(value.sourceRevision) ||

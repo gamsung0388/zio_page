@@ -1,0 +1,46 @@
+.song-cover-editor {
+  margin: 24px 0;
+  border-top: 1px solid var(--border, #dce5db);
+  padding-top: 20px;
+}
+.song-cover-editor h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.song-cover-upload {
+  display: flex;
+  align-items: start;
+  gap: 18px;
+  margin-top: 14px;
+}
+.song-cover-upload > img {
+  flex: none;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--canvas, #f7f8f4);
+  border: 1px solid var(--border, #dce5db);
+}
+.song-cover-upload-controls {
+  min-width: 0;
+  flex: 1;
+}
+.song-cover-upload input {
+  width: 100%;
+  max-width: 100%;
+  font: inherit;
+}
+.song-cover-upload .button {
+  margin: 10px 0;
+  min-height: 44px;
+}
+.song-cover-upload .help-text {
+  margin: 8px 0;
+}
+@media (max-width: 480px) {
+  .song-cover-upload {
+    flex-direction: column;
+  }
+  .song-cover-upload-controls {
+    width: 100%;
+  }
+}

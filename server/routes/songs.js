@@ -1,3 +1,4 @@
+import { songImageResponse } from "../services/song-images.js";
 import {
   ApiError,
   json,
@@ -5,7 +6,11 @@ import {
   readBody,
   positiveId,
 } from "../utils/http.js";
-import { parseFilters, validateSong } from "../services/song-validation.js";
+import {
+  parseFilters,
+  validateSong,
+  SONG_FIELDS,
+} from "../services/song-validation.js";
 import {
   validateSongMutation,
   songConflict,
@@ -43,7 +48,9 @@ export async function songRoutes(request, env, path, auth) {
         .all()
     ).results;
     return json({
-      items: rows.slice(0, 100).map(serialize),
+      items: rows
+        .slice(0, 100)
+        .map((row) => serialize(row, { admin: true, includeImage: true })),
       next_after: rows.length > 100 ? rows[99].id : null,
     });
   }
@@ -68,7 +75,7 @@ export async function songRoutes(request, env, path, auth) {
       return json(
         await createSong(
           env.DB,
-          validateSong(await readJson(request)),
+          validateSong(await readJson(request, 128 * 1024)),
           auth.user.id,
         ),
         201,
@@ -76,7 +83,7 @@ export async function songRoutes(request, env, path, auth) {
   }
   if (path === "/api/admin/songs/export.csv" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT * FROM songs WHERE deleted_at IS NULL ORDER BY id",
+      `SELECT ${SONG_FIELDS.join(",")} FROM songs WHERE deleted_at IS NULL ORDER BY id`,
     ).all();
     return new Response(stringifyCSV(result.results), {
       headers: {
@@ -116,6 +123,9 @@ export async function songRoutes(request, env, path, auth) {
           })),
     );
   }
+  const imageMatch = path.match(/^\/api\/admin\/songs\/([1-9]\d*)\/cover$/);
+  if (imageMatch && request.method === "GET")
+    return songImageResponse(env.DB, imageMatch[1], true);
   const match = path.match(/^\/api\/admin\/songs\/(\d+)$/);
   if (match) {
     const id = positiveId(match[1]);
@@ -127,7 +137,7 @@ export async function songRoutes(request, env, path, auth) {
     }
     if (request.method === "PATCH") {
       const { changes, revision } = validateSongMutation(
-        await readJson(request),
+        await readJson(request, 128 * 1024),
       );
       const song = await updateSong(
         env.DB,

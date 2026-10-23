@@ -6,6 +6,7 @@ import {
   PROFICIENCY_MIN,
   PROFICIENCY_MAX,
 } from "../../shared/song-rules.js";
+import { validateCoverImage } from "../../shared/song-image.js";
 import { validateAlbum } from "../../shared/album.js";
 export { SONG_FIELDS };
 export const STATUSES = PRACTICE_OPTIONS.map((option) => option.value);
@@ -29,7 +30,7 @@ export function validateSong(input, partial = false) {
   const errors = [];
   const output = partial ? {} : { ...defaults };
   for (const key of Object.keys(input)) {
-    if (!SONG_FIELDS.includes(key) && key !== "album")
+    if (!SONG_FIELDS.includes(key) && !["album", "cover_image"].includes(key))
       errors.push({ field: key, message: "허용되지 않은 필드입니다." });
   }
   for (const field of SONG_FIELDS) {
@@ -74,6 +75,13 @@ export function validateSong(input, partial = false) {
       output.album = validateAlbum(input.album);
     } catch (error) {
       errors.push({ field: "album", message: error.message });
+    }
+  }
+  if (Object.hasOwn(input, "cover_image")) {
+    try {
+      output.cover_image = validateCoverImage(input.cover_image);
+    } catch (error) {
+      errors.push({ field: "cover_image", message: error.message });
     }
   }
   if (partial && Object.keys(output).length === 0)

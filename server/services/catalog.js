@@ -4,7 +4,12 @@ import {
   CATALOG_STOREFRONTS,
   validateAlbum,
 } from "../../shared/album.js";
-export async function searchCatalog(db, input, fetcher = fetch) {
+export async function searchCatalog(
+  db,
+  input,
+  fetcher = fetch,
+  now = Date.now(),
+) {
   if (
     Object.keys(input).some((k) => !["q", "country"].includes(k)) ||
     typeof input.q !== "string" ||
@@ -19,8 +24,7 @@ export async function searchCatalog(db, input, fetcher = fetch) {
     );
   const q = input.q.trim(),
     country = input.country,
-    key = country + ":" + q.toLowerCase(),
-    now = Date.now();
+    key = country + ":" + q.toLowerCase();
   const cached = await db
     .prepare(
       "SELECT payload FROM catalog_cache WHERE cache_key=? AND expires_at>?",
